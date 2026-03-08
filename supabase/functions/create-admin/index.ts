@@ -12,20 +12,21 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { email, password, display_name, role: requestedRole } = await req.json();
+    const { email, display_name, role: requestedRole } = await req.json();
 
     const validRoles = ["hq_admin", "hq_team", "city_team"];
     const assignRole = validRoles.includes(requestedRole) ? requestedRole : "city_team";
 
-    if (!email || !password) {
+    if (!email) {
       return new Response(
-        JSON.stringify({ error: "Email and password are required" }),
+        JSON.stringify({ error: "E-post krävs" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
+      supabaseUrl,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
@@ -40,7 +41,7 @@ Deno.serve(async (req) => {
     }
 
     const callerClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
+      supabaseUrl,
       Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: authHeader } }, auth: { autoRefreshToken: false, persistSession: false } }
     );
@@ -62,7 +63,6 @@ Deno.serve(async (req) => {
     const isHqAdmin = callerRoleList.includes("hq_admin");
     const isHqTeam = callerRoleList.includes("hq_team");
 
-    // Only hq_admin can create hq_admin or hq_team
     if (assignRole === "hq_admin" && !isHqAdmin) {
       return new Response(
         JSON.stringify({ error: "Bara HQ Admin kan skapa HQ Admin-användare" }),
@@ -75,7 +75,6 @@ Deno.serve(async (req) => {
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    // hq_admin and hq_team can create city_team
     if (assignRole === "city_team" && !isHqAdmin && !isHqTeam) {
       return new Response(
         JSON.stringify({ error: "Bara HQ Admin eller HQ Team kan skapa City Team-användare" }),
@@ -83,17 +82,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Create the user
-    const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: { display_name: display_name || email },
+    // Invite user by email — they set their own password
+    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+      data: { display_name: display_name || email },
+      redirectTo: `${supabaseUrl.replace('.supabase.co', '.supabase.co')}/auth/v1/verify`,
     });
 
-    if (createError) {
+    if (inviteError) {
       return new Response(
-        JSON.stringify({ error: createError.message }),
+        JSON.stringify({ error: inviteError.message }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -101,7 +98,7 @@ Deno.serve(async (req) => {
     // Assign role
     const { error: roleError } = await supabaseAdmin
       .from("user_roles")
-      .insert({ user_id: newUser.user.id, role: assignRole });
+      .insert({ user_id: inviteData.user.id, role: assignRole });
 
     if (roleError) {
       return new Response(
@@ -110,8 +107,20 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Generate a magic link the admin can share manually
+    const { data: linkData } = await supabaseAdmin.auth.admin.generateLink({
+      type: "magiclink",
+      email,
+      options: { redirectTo: `${supabaseUrl.replace('.supabase.co', '.supabase.co')}/auth/v1/verify` },
+    });
+
     return new Response(
-      JSON.stringify({ success: true, user_id: newUser.user.id, email }),
+      JSON.stringify({
+        success: true,
+        user_id: inviteData.user.id,
+        email,
+        invite_link: linkData?.properties?.action_link || null,
+      }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
