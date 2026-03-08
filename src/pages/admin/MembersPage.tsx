@@ -39,16 +39,32 @@ export default function MembersPage() {
   const [bulkLoading, setBulkLoading] = useState(false);
   const { toast } = useToast();
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    const [pRes, cRes] = await Promise.all([
-      supabase
+  const fetchAllPeople = async () => {
+    const pageSize = 1000;
+    let allData: Person[] = [];
+    let from = 0;
+    let hasMore = true;
+    while (hasMore) {
+      const { data } = await supabase
         .from("people")
         .select("id, email, first_name, last_name, phone, engagement_status, roles, created_at, person_cities(city_id, is_primary, cities(name))")
-        .order("created_at", { ascending: false }),
+        .order("created_at", { ascending: false })
+        .range(from, from + pageSize - 1);
+      const batch = (data as unknown as Person[]) || [];
+      allData = allData.concat(batch);
+      hasMore = batch.length === pageSize;
+      from += pageSize;
+    }
+    return allData;
+  };
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    const [allPeople, cRes] = await Promise.all([
+      fetchAllPeople(),
       supabase.from("cities").select("id, name").order("name"),
     ]);
-    setPeople((pRes.data as unknown as Person[]) || []);
+    setPeople(allPeople);
     setCities(cRes.data || []);
     setLoading(false);
   }, []);
