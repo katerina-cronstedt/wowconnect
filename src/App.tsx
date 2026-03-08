@@ -58,6 +58,8 @@ const App = () => (
 
             {/* Admin CRM */}
             <Route path="/admin/login" element={<AdminLoginPage />} />
+            <Route path="/admin/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/admin/reset-password" element={<ResetPasswordPage />} />
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<DashboardPage />} />
               <Route path="members" element={<MembersPage />} />
