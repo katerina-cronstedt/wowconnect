@@ -2,36 +2,37 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ArrowLeft, UserPlus, Check } from "lucide-react";
+import { ArrowLeft, Copy, AlertCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import InviteMembersDialog from "@/components/admin/event/InviteMembersDialog";
+import WalkInDialog from "@/components/admin/event/WalkInDialog";
+import AttendanceBadge, { RsvpBadge } from "@/components/admin/event/AttendanceBadge";
 
 export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [event, setEvent] = useState<any>(null);
+  const [invites, setInvites] = useState<any[]>([]);
   const [rsvps, setRsvps] = useState<any[]>([]);
   const [attendances, setAttendances] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [walkInOpen, setWalkInOpen] = useState(false);
-  const [walkInForm, setWalkInForm] = useState({ first_name: "", last_name: "", email: "", phone: "" });
 
   const fetchData = async () => {
     if (!id) return;
-    const [eRes, rRes, aRes] = await Promise.all([
+    const [eRes, iRes, rRes, aRes] = await Promise.all([
       supabase.from("events").select("*, cities(name)").eq("id", id).single(),
-      supabase.from("rsvps").select("*, people(first_name, last_name, email)").eq("event_id", id),
-      supabase.from("attendance").select("*, people(first_name, last_name, email)").eq("event_id", id),
+      supabase.from("event_invites").select("*, people(id, first_name, last_name, email, pending_signup)").eq("event_id", id),
+      supabase.from("rsvps").select("*").eq("event_id", id),
+      supabase.from("attendance").select("*, people(id, first_name, last_name, email, pending_signup)").eq("event_id", id),
     ]);
     setEvent(eRes.data);
+    setInvites(iRes.data || []);
     setRsvps(rRes.data || []);
     setAttendances(aRes.data || []);
     setLoading(false);
@@ -55,55 +56,69 @@ export default function EventDetailPage() {
     fetchData();
   };
 
-  const handleWalkIn = async () => {
-    // Find or create person
-    let personId: string;
-    const { data: existing } = await supabase.from("people").select("id").eq("email", walkInForm.email).single();
-    if (existing) {
-      personId = existing.id;
-    } else {
-      const { data: newPerson, error } = await supabase.from("people").insert({
-        first_name: walkInForm.first_name,
-        last_name: walkInForm.last_name,
-        email: walkInForm.email,
-        phone: walkInForm.phone || null,
-        consent_opt_in: true,
-        consent_source: "event_walkin" as any,
-        consent_timestamp: new Date().toISOString(),
-      }).select("id").single();
-      if (error || !newPerson) {
-        toast({ title: "Error", description: error?.message || "Failed to create person", variant: "destructive" });
-        return;
-      }
-      personId = newPerson.id;
-    }
-
-    // Mark attendance
-    await supabase.from("attendance").upsert({
-      event_id: id!,
-      person_id: personId,
-      attendance_status: "arrived" as any,
-      checked_in_by_user_id: user?.id,
-      source: "walk_in" as any,
-    }, { onConflict: "event_id,person_id" });
-
-    toast({ title: "Walk-in registered" });
-    setWalkInOpen(false);
-    setWalkInForm({ first_name: "", last_name: "", email: "", phone: "" });
-    fetchData();
+  const copyRsvpLink = (token: string) => {
+    const url = `${window.location.origin}/rsvp/${id}/${token}`;
+    navigator.clipboard.writeText(url);
+    toast({ title: "RSVP-länk kopierad" });
   };
 
-  if (loading) return <div className="text-center py-12 text-muted-foreground">Loading...</div>;
-  if (!event) return <div className="text-center py-12 text-muted-foreground">Event not found</div>;
+  if (loading) return <div className="text-center py-12 text-muted-foreground">Laddar...</div>;
+  if (!event) return <div className="text-center py-12 text-muted-foreground">Event hittades inte</div>;
 
+  // Build unified list: all invited people + walk-ins
+  const rsvpByPerson = Object.fromEntries(rsvps.map((r) => [r.person_id, r]));
+  const attByPerson = Object.fromEntries(attendances.map((a) => [a.person_id, a]));
+  const inviteByPerson = Object.fromEntries(invites.map((i) => [i.person_id, i]));
+
+  // Invited people
+  const invitedRows = invites.map((inv) => ({
+    personId: inv.person_id,
+    name: `${inv.people?.first_name || ""} ${inv.people?.last_name || ""}`.trim(),
+    email: inv.people?.email,
+    rsvp: rsvpByPerson[inv.person_id]?.response,
+    attendance: attByPerson[inv.person_id]?.attendance_status,
+    source: attByPerson[inv.person_id]?.source || "rsvp",
+    rsvpToken: inv.rsvp_token,
+    pendingSignup: inv.people?.pending_signup,
+  }));
+
+  // Walk-ins not in invites
+  const walkInRows = attendances
+    .filter((a) => a.source === "walk_in" && !inviteByPerson[a.person_id])
+    .map((a) => ({
+      personId: a.person_id,
+      name: `${a.people?.first_name || ""} ${a.people?.last_name || ""}`.trim(),
+      email: a.people?.email,
+      rsvp: undefined,
+      attendance: a.attendance_status,
+      source: "walk_in" as const,
+      rsvpToken: undefined,
+      pendingSignup: a.people?.pending_signup,
+    }));
+
+  const allRows = [...invitedRows, ...walkInRows];
+
+  // Stats
   const yesCount = rsvps.filter((r) => r.response === "yes").length;
   const noCount = rsvps.filter((r) => r.response === "no").length;
   const arrivedCount = attendances.filter((a) => a.attendance_status === "arrived" || a.attendance_status === "late").length;
+  const excusedCount = attendances.filter((a) => a.attendance_status === "excused").length;
   const noShowCount = attendances.filter((a) => a.attendance_status === "no_show").length;
   const walkInCount = attendances.filter((a) => a.source === "walk_in").length;
 
+  const stats = [
+    { label: "Inbjudna", value: invites.length },
+    { label: "RSVP Ja", value: yesCount },
+    { label: "RSVP Nej", value: noCount },
+    { label: "Närvarande", value: arrivedCount },
+    { label: "Förhinder", value: excusedCount },
+    { label: "No-show", value: noShowCount },
+    { label: "Walk-ins", value: walkInCount },
+  ];
+
   return (
     <div className="space-y-6 max-w-5xl">
+      {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate("/admin/events")}>
           <ArrowLeft className="h-5 w-5" />
@@ -116,90 +131,91 @@ export default function EventDetailPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        {[
-          { label: "Invited", value: rsvps.length },
-          { label: "RSVP Yes", value: yesCount },
-          { label: "RSVP No", value: noCount },
-          { label: "Attended", value: arrivedCount },
-          { label: "No-shows", value: noShowCount },
-        ].map((s) => (
+      {/* Stats */}
+      <div className="grid grid-cols-3 sm:grid-cols-7 gap-2">
+        {stats.map((s) => (
           <Card key={s.label}>
-            <CardContent className="pt-4 text-center">
-              <p className="text-2xl font-bold">{s.value}</p>
-              <p className="text-xs text-muted-foreground">{s.label}</p>
+            <CardContent className="pt-3 pb-2 text-center">
+              <p className="text-xl font-bold">{s.value}</p>
+              <p className="text-[11px] text-muted-foreground">{s.label}</p>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Check-in</h2>
-        <Dialog open={walkInOpen} onOpenChange={setWalkInOpen}>
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm"><UserPlus className="h-4 w-4 mr-1" /> Walk-in</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Register Walk-in</DialogTitle></DialogHeader>
-            <div className="space-y-3 mt-2">
-              <div className="grid grid-cols-2 gap-3">
-                <div><Label>First Name *</Label><Input value={walkInForm.first_name} onChange={(e) => setWalkInForm({ ...walkInForm, first_name: e.target.value })} /></div>
-                <div><Label>Last Name *</Label><Input value={walkInForm.last_name} onChange={(e) => setWalkInForm({ ...walkInForm, last_name: e.target.value })} /></div>
-              </div>
-              <div><Label>Email *</Label><Input type="email" value={walkInForm.email} onChange={(e) => setWalkInForm({ ...walkInForm, email: e.target.value })} /></div>
-              <div><Label>Phone</Label><Input value={walkInForm.phone} onChange={(e) => setWalkInForm({ ...walkInForm, phone: e.target.value })} /></div>
-              <Button className="w-full" onClick={handleWalkIn} disabled={!walkInForm.first_name || !walkInForm.last_name || !walkInForm.email}>
-                Register & Check In
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+      {/* Actions */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h2 className="text-lg font-semibold">Deltagarlista</h2>
+        <div className="flex gap-2">
+          <InviteMembersDialog
+            eventId={id!}
+            existingInvitePersonIds={invites.map((i) => i.person_id)}
+            onInvited={fetchData}
+          />
+          <WalkInDialog eventId={id!} onDone={fetchData} />
+        </div>
       </div>
 
+      {/* Table */}
       <div className="rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
+              <TableHead>Namn</TableHead>
+              <TableHead>E-post</TableHead>
               <TableHead>RSVP</TableHead>
-              <TableHead>Attendance</TableHead>
-              <TableHead>Source</TableHead>
+              <TableHead>Närvaro</TableHead>
+              <TableHead>Källa</TableHead>
+              <TableHead className="w-[50px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rsvps.filter((r) => r.response === "yes").map((r) => {
-              const att = attendances.find((a) => a.person_id === r.person_id);
-              return (
-                <TableRow key={r.id}>
-                  <TableCell className="font-medium">{r.people?.first_name} {r.people?.last_name}</TableCell>
-                  <TableCell><Badge>Yes</Badge></TableCell>
-                  <TableCell>
-                    <Select
-                      value={att?.attendance_status || ""}
-                      onValueChange={(v) => updateAttendance(r.person_id, v)}
-                    >
-                      <SelectTrigger className="w-[120px]">
-                        <SelectValue placeholder="Mark..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="arrived">Arrived</SelectItem>
-                        <SelectItem value="late">Late</SelectItem>
-                        <SelectItem value="no_show">No-show</SelectItem>
-                      </SelectContent>
-                    </Select>
+            {allRows.length === 0 ? (
+              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Inga deltagare ännu. Bjud in medlemmar för att komma igång.</TableCell></TableRow>
+            ) : (
+              allRows.map((row) => (
+                <TableRow key={row.personId}>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-1.5">
+                      {row.name || "—"}
+                      {row.pendingSignup && (
+                        <span title="Har inte slutfört registrering"><AlertCircle className="h-3.5 w-3.5 text-orange-500" /></span>
+                      )}
+                    </div>
                   </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{att?.source || "—"}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{row.email}</TableCell>
+                  <TableCell><RsvpBadge response={row.rsvp} /></TableCell>
+                  <TableCell>
+                    {row.source === "walk_in" && !row.rsvpToken ? (
+                      <AttendanceBadge status={row.attendance} source="walk_in" />
+                    ) : (
+                      <Select
+                        value={row.attendance || ""}
+                        onValueChange={(v) => updateAttendance(row.personId, v)}
+                      >
+                        <SelectTrigger className="w-[160px] h-8 text-xs">
+                          <SelectValue placeholder="Markera..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="arrived">Närvarande</SelectItem>
+                          <SelectItem value="late">Kom sent</SelectItem>
+                          <SelectItem value="excused">Meddelat förhinder</SelectItem>
+                          <SelectItem value="no_show">No-show</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground capitalize">{row.source === "walk_in" ? "Walk-in" : "Inbjudan"}</TableCell>
+                  <TableCell>
+                    {row.rsvpToken && (
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => copyRsvpLink(row.rsvpToken!)} title="Kopiera RSVP-länk">
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </TableCell>
                 </TableRow>
-              );
-            })}
-            {attendances.filter((a) => a.source === "walk_in").map((a) => (
-              <TableRow key={a.id}>
-                <TableCell className="font-medium">{a.people?.first_name} {a.people?.last_name}</TableCell>
-                <TableCell><Badge variant="secondary">Walk-in</Badge></TableCell>
-                <TableCell><Badge variant="outline" className="capitalize">{a.attendance_status}</Badge></TableCell>
-                <TableCell className="text-xs text-muted-foreground">walk_in</TableCell>
-              </TableRow>
-            ))}
+              ))
+            )}
           </TableBody>
         </Table>
       </div>
