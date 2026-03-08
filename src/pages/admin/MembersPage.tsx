@@ -29,6 +29,8 @@ export default function MembersPage() {
   const [cityFilter, setCityFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [cities, setCities] = useState<{ id: string; name: string }[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState(100);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
