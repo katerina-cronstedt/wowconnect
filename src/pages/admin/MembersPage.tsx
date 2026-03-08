@@ -162,55 +162,108 @@ export default function MembersPage() {
       {loading ? (
         <div className="text-center py-12 text-muted-foreground">Loading...</div>
       ) : (
-        <div className="rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>City</TableHead>
-                <TableHead>Roles</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((p) => (
-                <TableRow key={p.id}>
-                  <TableCell>
-                    <Link to={`/admin/members/${p.id}`} className="font-medium text-primary hover:underline">
-                      {p.first_name} {p.last_name}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{p.email}</TableCell>
-                  <TableCell>
-                    {p.person_cities?.map((pc) => (
-                      <Badge key={pc.city_id} variant="secondary" className="mr-1 text-xs">
-                        {pc.cities?.name}
-                      </Badge>
-                    ))}
-                  </TableCell>
-                  <TableCell>
-                    {p.roles?.map((r) => (
-                      <Badge key={r} variant="outline" className="mr-1 text-xs capitalize">{r}</Badge>
-                    ))}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={p.engagement_status === "Active" ? "default" : "secondary"}>
-                      {p.engagement_status || "—"}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {filtered.length === 0 && (
+        <>
+          <div className="rounded-lg border">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    No members found
-                  </TableCell>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>City</TableHead>
+                  <TableHead>Roles</TableHead>
+                  <TableHead>Status</TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {paginated.map((p) => (
+                  <TableRow key={p.id}>
+                    <TableCell>
+                      <Link to={`/admin/members/${p.id}`} className="font-medium text-primary hover:underline">
+                        {p.first_name} {p.last_name}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{p.email}</TableCell>
+                    <TableCell>
+                      {p.person_cities?.map((pc) => (
+                        <Badge key={pc.city_id} variant="secondary" className="mr-1 text-xs">
+                          {pc.cities?.name}
+                        </Badge>
+                      ))}
+                    </TableCell>
+                    <TableCell>
+                      {p.roles?.map((r) => (
+                        <Badge key={r} variant="outline" className="mr-1 text-xs capitalize">{r}</Badge>
+                      ))}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={p.engagement_status === "Active" ? "default" : "secondary"}>
+                        {p.engagement_status || "—"}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {paginated.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      No members found
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-2">
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={safeCurrentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Prev
+                </Button>
+                {pageNumbers.map((pg, i) =>
+                  pg === "ellipsis" ? (
+                    <span key={`e${i}`} className="px-2 text-muted-foreground">…</span>
+                  ) : (
+                    <Button
+                      key={pg}
+                      variant={pg === safeCurrentPage ? "default" : "outline"}
+                      size="sm"
+                      className="min-w-[36px]"
+                      onClick={() => setCurrentPage(pg)}
+                    >
+                      {pg}
+                    </Button>
+                  )
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safeCurrentPage === totalPages}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+              <Select value={String(perPage)} onValueChange={(v) => setPerPage(Number(v))}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="50">50 per page</SelectItem>
+                  <SelectItem value="100">100 per page</SelectItem>
+                  <SelectItem value="250">250 per page</SelectItem>
+                  <SelectItem value="500">500 per page</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
