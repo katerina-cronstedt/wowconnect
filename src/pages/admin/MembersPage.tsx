@@ -30,22 +30,24 @@ export default function MembersPage() {
   const [roleFilter, setRoleFilter] = useState("all");
   const [cities, setCities] = useState<{ id: string; name: string }[]>([]);
 
-  useEffect(() => {
-    const fetch = async () => {
-      const [pRes, cRes] = await Promise.all([
-        supabase
-          .from("people")
-          .select("id, email, first_name, last_name, phone, engagement_status, roles, created_at, person_cities(city_id, is_primary, cities(name))")
-          .order("created_at", { ascending: false })
-          .limit(500),
-        supabase.from("cities").select("id, name").order("name"),
-      ]);
-      setPeople((pRes.data as unknown as Person[]) || []);
-      setCities(cRes.data || []);
-      setLoading(false);
-    };
-    fetch();
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    const [pRes, cRes] = await Promise.all([
+      supabase
+        .from("people")
+        .select("id, email, first_name, last_name, phone, engagement_status, roles, created_at, person_cities(city_id, is_primary, cities(name))")
+        .order("created_at", { ascending: false })
+        .limit(500),
+      supabase.from("cities").select("id, name").order("name"),
+    ]);
+    setPeople((pRes.data as unknown as Person[]) || []);
+    setCities(cRes.data || []);
+    setLoading(false);
   }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const filtered = useMemo(() => {
     return people.filter((p) => {
