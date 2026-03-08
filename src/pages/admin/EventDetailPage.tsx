@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,6 +13,8 @@ import InviteMembersDialog from "@/components/admin/event/InviteMembersDialog";
 import WalkInDialog from "@/components/admin/event/WalkInDialog";
 import AttendanceBadge, { RsvpBadge } from "@/components/admin/event/AttendanceBadge";
 
+type FilterType = "all" | "invited" | "rsvp_yes" | "rsvp_no" | "arrived" | "excused" | "no_show" | "walk_in";
+
 export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -22,6 +24,7 @@ export default function EventDetailPage() {
   const [rsvps, setRsvps] = useState<any[]>([]);
   const [attendances, setAttendances] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<FilterType>("all");
 
   const fetchData = async () => {
     if (!id) return;
@@ -65,12 +68,11 @@ export default function EventDetailPage() {
   if (loading) return <div className="text-center py-12 text-muted-foreground">Laddar...</div>;
   if (!event) return <div className="text-center py-12 text-muted-foreground">Event hittades inte</div>;
 
-  // Build unified list: all invited people + walk-ins
+  // Build unified list
   const rsvpByPerson = Object.fromEntries(rsvps.map((r) => [r.person_id, r]));
   const attByPerson = Object.fromEntries(attendances.map((a) => [a.person_id, a]));
   const inviteByPerson = Object.fromEntries(invites.map((i) => [i.person_id, i]));
 
-  // Invited people
   const invitedRows = invites.map((inv) => ({
     personId: inv.person_id,
     name: `${inv.people?.first_name || ""} ${inv.people?.last_name || ""}`.trim(),
@@ -82,7 +84,6 @@ export default function EventDetailPage() {
     pendingSignup: inv.people?.pending_signup,
   }));
 
-  // Walk-ins not in invites
   const walkInRows = attendances
     .filter((a) => a.source === "walk_in" && !inviteByPerson[a.person_id])
     .map((a) => ({
@@ -98,6 +99,20 @@ export default function EventDetailPage() {
 
   const allRows = [...invitedRows, ...walkInRows];
 
+  // Filter rows based on active filter
+  const filteredRows = allRows.filter((row) => {
+    switch (filter) {
+      case "invited": return inviteByPerson[row.personId];
+      case "rsvp_yes": return row.rsvp === "yes";
+      case "rsvp_no": return row.rsvp === "no";
+      case "arrived": return row.attendance === "arrived" || row.attendance === "late";
+      case "excused": return row.attendance === "excused";
+      case "no_show": return row.attendance === "no_show";
+      case "walk_in": return row.source === "walk_in";
+      default: return true;
+    }
+  });
+
   // Stats
   const yesCount = rsvps.filter((r) => r.response === "yes").length;
   const noCount = rsvps.filter((r) => r.response === "no").length;
@@ -106,14 +121,14 @@ export default function EventDetailPage() {
   const noShowCount = attendances.filter((a) => a.attendance_status === "no_show").length;
   const walkInCount = attendances.filter((a) => a.source === "walk_in").length;
 
-  const stats = [
-    { label: "Inbjudna", value: invites.length },
-    { label: "RSVP Ja", value: yesCount },
-    { label: "RSVP Nej", value: noCount },
-    { label: "Närvarande", value: arrivedCount },
-    { label: "Förhinder", value: excusedCount },
-    { label: "No-show", value: noShowCount },
-    { label: "Walk-ins", value: walkInCount },
+  const stats: { label: string; value: number; filterKey: FilterType }[] = [
+    { label: "Inbjudna", value: invites.length, filterKey: "invited" },
+    { label: "RSVP Ja", value: yesCount, filterKey: "rsvp_yes" },
+    { label: "RSVP Nej", value: noCount, filterKey: "rsvp_no" },
+    { label: "Närvarande", value: arrivedCount, filterKey: "arrived" },
+    { label: "Förhinder", value: excusedCount, filterKey: "excused" },
+    { label: "No-show", value: noShowCount, filterKey: "no_show" },
+    { label: "Walk-ins", value: walkInCount, filterKey: "walk_in" },
   ];
 
   return (
@@ -131,10 +146,14 @@ export default function EventDetailPage() {
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Stats - clickable */}
       <div className="grid grid-cols-3 sm:grid-cols-7 gap-2">
         {stats.map((s) => (
-          <Card key={s.label}>
+          <Card
+            key={s.label}
+            className={`cursor-pointer transition-all hover:ring-2 hover:ring-primary/50 ${filter === s.filterKey ? "ring-2 ring-primary" : ""}`}
+            onClick={() => setFilter(filter === s.filterKey ? "all" : s.filterKey)}
+          >
             <CardContent className="pt-3 pb-2 text-center">
               <p className="text-xl font-bold">{s.value}</p>
               <p className="text-[11px] text-muted-foreground">{s.label}</p>
@@ -143,12 +162,25 @@ export default function EventDetailPage() {
         ))}
       </div>
 
+      {/* Active filter indicator */}
+      {filter !== "all" && (
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="text-xs">
+            Filtrerar: {stats.find((s) => s.filterKey === filter)?.label}
+          </Badge>
+          <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setFilter("all")}>
+            Visa alla
+          </Button>
+        </div>
+      )}
+
       {/* Actions */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h2 className="text-lg font-semibold">Deltagarlista</h2>
         <div className="flex gap-2">
           <InviteMembersDialog
             eventId={id!}
+            eventCityId={event.city_id}
             existingInvitePersonIds={invites.map((i) => i.person_id)}
             onInvited={fetchData}
           />
@@ -170,14 +202,18 @@ export default function EventDetailPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {allRows.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Inga deltagare ännu. Bjud in medlemmar för att komma igång.</TableCell></TableRow>
+            {filteredRows.length === 0 ? (
+              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                {filter !== "all" ? "Inga deltagare matchar filtret." : "Inga deltagare ännu. Bjud in medlemmar för att komma igång."}
+              </TableCell></TableRow>
             ) : (
-              allRows.map((row) => (
+              filteredRows.map((row) => (
                 <TableRow key={row.personId}>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-1.5">
-                      {row.name || "—"}
+                      <Link to={`/admin/members/${row.personId}`} className="hover:underline text-primary">
+                        {row.name || "—"}
+                      </Link>
                       {row.pendingSignup && (
                         <span title="Har inte slutfört registrering"><AlertCircle className="h-3.5 w-3.5 text-orange-500" /></span>
                       )}
