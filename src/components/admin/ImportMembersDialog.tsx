@@ -222,9 +222,15 @@ export default function ImportMembersDialog({ cities, onImported }: Props) {
             </div>
           )}
 
-          <Button onClick={handleImport} disabled={importing || !file} className="w-full">
-            {importing ? "Importerar..." : "Starta import"}
-          </Button>
+          {result && result.added > 0 ? (
+            <Button onClick={() => setOpen(false)} className="w-full">
+              Klar – stäng
+            </Button>
+          ) : (
+            <Button onClick={handleImport} disabled={importing || !file} className="w-full">
+              {importing ? "Importerar..." : "Starta import"}
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>
