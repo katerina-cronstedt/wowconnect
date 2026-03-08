@@ -30,6 +30,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    // Handle auth errors in URL hash (e.g. expired magic links)
+    const hash = window.location.hash;
+    if (hash.includes("error=")) {
+      const params = new URLSearchParams(hash.replace("#", ""));
+      const errorDesc = params.get("error_description") || params.get("error");
+      if (errorDesc) {
+        // Clean the hash and redirect to login with error
+        window.history.replaceState(null, "", window.location.pathname);
+        const msg = errorDesc.includes("expired")
+          ? "Länken har gått ut eller redan använts. Begär en ny."
+          : errorDesc;
+        // Store error to show on login page
+        sessionStorage.setItem("auth_error", msg);
+        if (!window.location.pathname.startsWith("/admin/login")) {
+          window.location.href = "/admin/login";
+          return;
+        }
+      }
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setSession(session);
