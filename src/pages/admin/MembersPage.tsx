@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Download } from "lucide-react";
+import { Search, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import AddMemberDialog from "@/components/admin/AddMemberDialog";
 import ImportMembersDialog from "@/components/admin/ImportMembersDialog";
 
