@@ -18,6 +18,8 @@ import ContactPage from "./pages/ContactPage";
 import RsvpPage from "./pages/RsvpPage";
 import NotFound from "./pages/NotFound";
 import AdminLoginPage from "./pages/admin/AdminLoginPage";
+import ForgotPasswordPage from "./pages/admin/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/admin/ResetPasswordPage";
 import AdminLayout from "./pages/admin/AdminLayout";
 import DashboardPage from "./pages/admin/DashboardPage";
 import MembersPage from "./pages/admin/MembersPage";
@@ -56,6 +58,8 @@ const App = () => (
 
             {/* Admin CRM */}
             <Route path="/admin/login" element={<AdminLoginPage />} />
+            <Route path="/admin/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/admin/reset-password" element={<ResetPasswordPage />} />
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<DashboardPage />} />
               <Route path="members" element={<MembersPage />} />
