@@ -86,22 +86,39 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Invite user by email
+    // Try to invite user by email
+    let userId: string;
     const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
       data: { display_name: display_name || email },
     });
 
     if (inviteError) {
-      return new Response(
-        JSON.stringify({ error: inviteError.message }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      // If user already exists, look them up and assign role
+      if (inviteError.message.includes("already been registered")) {
+        const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+        const existingUser = (users || []).find((u: any) => u.email === email);
+        if (!existingUser) {
+          return new Response(
+            JSON.stringify({ error: "Användaren finns redan men kunde inte hittas" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        userId = existingUser.id;
+      } else {
+        return new Response(
+          JSON.stringify({ error: inviteError.message }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    } else {
+      userId = inviteData.user.id;
     }
 
-    // Assign role
+    // Upsert role (delete old + insert new)
+    await supabaseAdmin.from("user_roles").delete().eq("user_id", userId);
     const { error: roleError } = await supabaseAdmin
       .from("user_roles")
-      .insert({ user_id: inviteData.user.id, role: assignRole });
+      .insert({ user_id: userId, role: assignRole });
 
     if (roleError) {
       return new Response(
@@ -119,7 +136,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        user_id: inviteData.user.id,
+        user_id: userId,
         email,
         invite_link: linkData?.properties?.action_link || null,
       }),
