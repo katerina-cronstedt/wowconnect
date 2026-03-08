@@ -338,9 +338,13 @@ export default function SettingsPage() {
                               <UserCog className="h-4 w-4 mr-2" />
                               Ändra roll
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleSendResetEmail(u)}>
+                              <Mail className="h-4 w-4 mr-2" />
+                              Skicka återställningslänk
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleResetPassword(u)}>
                               <KeyRound className="h-4 w-4 mr-2" />
-                              Lösenordsåterställning
+                              Kopiera återställningslänk
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleGenerateInviteLink(u)}>
                               <Link2 className="h-4 w-4 mr-2" />
