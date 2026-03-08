@@ -703,6 +703,7 @@ export type Database = {
         Returns: boolean
       }
       is_hq_admin: { Args: never; Returns: boolean }
+      is_hq_level: { Args: never; Returns: boolean }
       is_staff_or_admin: { Args: never; Returns: boolean }
     }
     Enums: {
