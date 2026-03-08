@@ -6,7 +6,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  role: "hq_admin" | "staff" | null;
+  role: "hq_admin" | "hq_team" | "city_team" | "staff" | null;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
