@@ -13,14 +13,33 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [sessionReady, setSessionReady] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check for recovery token in URL hash
-    const hash = window.location.hash;
-    if (hash && hash.includes("type=recovery")) {
-      // Supabase will auto-set the session from the hash
-    }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (event === "PASSWORD_RECOVERY" && session) {
+          setSessionReady(true);
+          setCheckingSession(false);
+        } else if (event === "SIGNED_IN" && session) {
+          // Recovery token was already exchanged (e.g. page reload)
+          setSessionReady(true);
+          setCheckingSession(false);
+        }
+      }
+    );
+
+    // Also check if there's already a session (user refreshed the page after token exchange)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setSessionReady(true);
+      }
+      setCheckingSession(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -47,6 +66,14 @@ export default function ResetPasswordPage() {
     setLoading(false);
   };
 
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4">
       <Card className="w-full max-w-md">
@@ -58,7 +85,11 @@ export default function ResetPasswordPage() {
           <CardDescription>Ange ditt nya lösenord nedan.</CardDescription>
         </CardHeader>
         <CardContent>
-          {success ? (
+          {!sessionReady ? (
+            <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">
+              Återställningslänken är ogiltig eller har gått ut. <a href="/admin/forgot-password" className="underline font-medium">Begär en ny länk</a>.
+            </div>
+          ) : success ? (
             <div className="bg-primary/10 text-primary text-sm p-3 rounded-md">
               Lösenordet har uppdaterats! Du skickas vidare...
             </div>
