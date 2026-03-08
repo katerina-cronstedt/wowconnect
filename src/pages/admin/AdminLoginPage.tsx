@@ -16,7 +16,7 @@ export default function AdminLoginPage() {
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { signIn } = useAuth();
+  const { signIn, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -26,6 +26,12 @@ export default function AdminLoginPage() {
       sessionStorage.removeItem("auth_error");
     }
   }, []);
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate("/admin", { replace: true });
+    }
+  }, [authLoading, user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,7 +49,7 @@ export default function AdminLoginPage() {
   const handleGoogleSignIn = async () => {
     setError("");
     const { error } = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+      redirect_uri: `${window.location.origin}/admin`,
     });
     if (error) {
       setError("Google-inloggning misslyckades. Försök igen.");
