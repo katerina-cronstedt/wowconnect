@@ -706,7 +706,7 @@ export type Database = {
       is_staff_or_admin: { Args: never; Returns: boolean }
     }
     Enums: {
-      app_role: "hq_admin" | "staff"
+      app_role: "hq_admin" | "staff" | "hq_team" | "city_team"
       attendance_source: "rsvp" | "walk_in"
       attendance_status: "arrived" | "late" | "no_show" | "excused"
       cefr_level: "A0" | "A1" | "A2" | "B1" | "B2" | "C1" | "C2"
@@ -859,7 +859,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["hq_admin", "staff"],
+      app_role: ["hq_admin", "staff", "hq_team", "city_team"],
       attendance_source: ["rsvp", "walk_in"],
       attendance_status: ["arrived", "late", "no_show", "excused"],
       cefr_level: ["A0", "A1", "A2", "B1", "B2", "C1", "C2"],
