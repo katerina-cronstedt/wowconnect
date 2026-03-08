@@ -26,7 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq("user_id", userId)
       .limit(1)
       .single();
-    setRole((data?.role as "hq_admin" | "staff") ?? null);
+    setRole((data?.role as "hq_admin" | "hq_team" | "city_team" | "staff") ?? null);
   };
 
   useEffect(() => {
