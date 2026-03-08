@@ -26,22 +26,26 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Authenticate caller
+    // Authenticate caller using getClaims
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return json({ error: "Authentication required" }, 403);
+    if (!authHeader?.startsWith("Bearer ")) return json({ error: "Authentication required" }, 401);
 
     const callerClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
       auth: { autoRefreshToken: false, persistSession: false },
     });
-    const { data: { user: caller } } = await callerClient.auth.getUser();
-    if (!caller) return json({ error: "Invalid auth token" }, 401);
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await callerClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) return json({ error: "Invalid auth token" }, 401);
+
+    const callerId = claimsData.claims.sub;
 
     // Get caller roles
     const { data: callerRoles } = await supabaseAdmin
       .from("user_roles")
       .select("role")
-      .eq("user_id", caller.id);
+      .eq("user_id", callerId);
 
     const callerRoleList = (callerRoles || []).map((r: any) => r.role);
     const isHqAdmin = callerRoleList.includes("hq_admin");
@@ -52,7 +56,7 @@ Deno.serve(async (req) => {
     }
 
     // Cannot modify yourself
-    if (target_user_id === caller.id && action !== "reset_password") {
+    if (target_user_id === callerId && action !== "reset_password") {
       return json({ error: "Du kan inte ändra din egen roll eller ta bort dig själv" }, 403);
     }
 
@@ -75,12 +79,10 @@ Deno.serve(async (req) => {
         if (!validRoles.includes(new_role)) {
           return json({ error: "Ogiltig roll" }, 400);
         }
-        // Only hq_admin can assign hq_admin or hq_team
         if ((new_role === "hq_admin" || new_role === "hq_team") && !isHqAdmin) {
           return json({ error: "Bara HQ Admin kan tilldela denna roll" }, 403);
         }
 
-        // Update: delete old roles and insert new
         await supabaseAdmin.from("user_roles").delete().eq("user_id", target_user_id);
         const { error } = await supabaseAdmin
           .from("user_roles")
@@ -91,7 +93,6 @@ Deno.serve(async (req) => {
       }
 
       case "reset_password": {
-        // Get target email
         const targetEmail = email;
         if (!targetEmail) return json({ error: "E-post saknas" }, 400);
 
@@ -131,7 +132,6 @@ Deno.serve(async (req) => {
           return json({ error: "Bara HQ Admin kan ta bort användare" }, 403);
         }
 
-        // Delete role first, then auth user
         await supabaseAdmin.from("user_roles").delete().eq("user_id", target_user_id);
         await supabaseAdmin.from("profiles").delete().eq("user_id", target_user_id);
         await supabaseAdmin.from("staff_cities").delete().eq("user_id", target_user_id);
