@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Download } from "lucide-react";
+import { Search, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import AddMemberDialog from "@/components/admin/AddMemberDialog";
 import ImportMembersDialog from "@/components/admin/ImportMembersDialog";
 
@@ -29,6 +29,8 @@ export default function MembersPage() {
   const [cityFilter, setCityFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [cities, setCities] = useState<{ id: string; name: string }[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState(100);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -36,8 +38,7 @@ export default function MembersPage() {
       supabase
         .from("people")
         .select("id, email, first_name, last_name, phone, engagement_status, roles, created_at, person_cities(city_id, is_primary, cities(name))")
-        .order("created_at", { ascending: false })
-        .limit(500),
+        .order("created_at", { ascending: false }),
       supabase.from("cities").select("id, name").order("name"),
     ]);
     setPeople((pRes.data as unknown as Person[]) || []);
@@ -62,6 +63,31 @@ export default function MembersPage() {
       return matchSearch && matchCity && matchRole;
     });
   }, [people, search, cityFilter, roleFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginated = filtered.slice((safeCurrentPage - 1) * perPage, safeCurrentPage * perPage);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, cityFilter, roleFilter, perPage]);
+
+  const pageNumbers = useMemo(() => {
+    const pages: (number | "ellipsis")[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (safeCurrentPage > 3) pages.push("ellipsis");
+      for (let i = Math.max(2, safeCurrentPage - 1); i <= Math.min(totalPages - 1, safeCurrentPage + 1); i++) {
+        pages.push(i);
+      }
+      if (safeCurrentPage < totalPages - 2) pages.push("ellipsis");
+      pages.push(totalPages);
+    }
+    return pages;
+  }, [totalPages, safeCurrentPage]);
 
   const exportCSV = () => {
     const headers = ["First Name", "Last Name", "Email", "Phone", "City", "Roles", "Status"];
@@ -136,55 +162,108 @@ export default function MembersPage() {
       {loading ? (
         <div className="text-center py-12 text-muted-foreground">Loading...</div>
       ) : (
-        <div className="rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>City</TableHead>
-                <TableHead>Roles</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((p) => (
-                <TableRow key={p.id}>
-                  <TableCell>
-                    <Link to={`/admin/members/${p.id}`} className="font-medium text-primary hover:underline">
-                      {p.first_name} {p.last_name}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{p.email}</TableCell>
-                  <TableCell>
-                    {p.person_cities?.map((pc) => (
-                      <Badge key={pc.city_id} variant="secondary" className="mr-1 text-xs">
-                        {pc.cities?.name}
-                      </Badge>
-                    ))}
-                  </TableCell>
-                  <TableCell>
-                    {p.roles?.map((r) => (
-                      <Badge key={r} variant="outline" className="mr-1 text-xs capitalize">{r}</Badge>
-                    ))}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={p.engagement_status === "Active" ? "default" : "secondary"}>
-                      {p.engagement_status || "—"}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {filtered.length === 0 && (
+        <>
+          <div className="rounded-lg border">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    No members found
-                  </TableCell>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>City</TableHead>
+                  <TableHead>Roles</TableHead>
+                  <TableHead>Status</TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {paginated.map((p) => (
+                  <TableRow key={p.id}>
+                    <TableCell>
+                      <Link to={`/admin/members/${p.id}`} className="font-medium text-primary hover:underline">
+                        {p.first_name} {p.last_name}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{p.email}</TableCell>
+                    <TableCell>
+                      {p.person_cities?.map((pc) => (
+                        <Badge key={pc.city_id} variant="secondary" className="mr-1 text-xs">
+                          {pc.cities?.name}
+                        </Badge>
+                      ))}
+                    </TableCell>
+                    <TableCell>
+                      {p.roles?.map((r) => (
+                        <Badge key={r} variant="outline" className="mr-1 text-xs capitalize">{r}</Badge>
+                      ))}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={p.engagement_status === "Active" ? "default" : "secondary"}>
+                        {p.engagement_status || "—"}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {paginated.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      No members found
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-2">
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={safeCurrentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Prev
+                </Button>
+                {pageNumbers.map((pg, i) =>
+                  pg === "ellipsis" ? (
+                    <span key={`e${i}`} className="px-2 text-muted-foreground">…</span>
+                  ) : (
+                    <Button
+                      key={pg}
+                      variant={pg === safeCurrentPage ? "default" : "outline"}
+                      size="sm"
+                      className="min-w-[36px]"
+                      onClick={() => setCurrentPage(pg)}
+                    >
+                      {pg}
+                    </Button>
+                  )
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safeCurrentPage === totalPages}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+              <Select value={String(perPage)} onValueChange={(v) => setPerPage(Number(v))}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="50">50 per page</SelectItem>
+                  <SelectItem value="100">100 per page</SelectItem>
+                  <SelectItem value="250">250 per page</SelectItem>
+                  <SelectItem value="500">500 per page</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
