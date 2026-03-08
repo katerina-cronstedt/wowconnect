@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Download, Plus } from "lucide-react";
+import { Search, Download } from "lucide-react";
+import AddMemberDialog from "@/components/admin/AddMemberDialog";
+import ImportMembersDialog from "@/components/admin/ImportMembersDialog";
 
 interface Person {
   id: string;
@@ -28,22 +30,24 @@ export default function MembersPage() {
   const [roleFilter, setRoleFilter] = useState("all");
   const [cities, setCities] = useState<{ id: string; name: string }[]>([]);
 
-  useEffect(() => {
-    const fetch = async () => {
-      const [pRes, cRes] = await Promise.all([
-        supabase
-          .from("people")
-          .select("id, email, first_name, last_name, phone, engagement_status, roles, created_at, person_cities(city_id, is_primary, cities(name))")
-          .order("created_at", { ascending: false })
-          .limit(500),
-        supabase.from("cities").select("id, name").order("name"),
-      ]);
-      setPeople((pRes.data as unknown as Person[]) || []);
-      setCities(cRes.data || []);
-      setLoading(false);
-    };
-    fetch();
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    const [pRes, cRes] = await Promise.all([
+      supabase
+        .from("people")
+        .select("id, email, first_name, last_name, phone, engagement_status, roles, created_at, person_cities(city_id, is_primary, cities(name))")
+        .order("created_at", { ascending: false })
+        .limit(500),
+      supabase.from("cities").select("id, name").order("name"),
+    ]);
+    setPeople((pRes.data as unknown as Person[]) || []);
+    setCities(cRes.data || []);
+    setLoading(false);
   }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const filtered = useMemo(() => {
     return people.filter((p) => {
@@ -84,10 +88,13 @@ export default function MembersPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Members</h1>
         <div className="flex gap-2">
+          <ImportMembersDialog cities={cities} onImported={fetchData} />
+          <AddMemberDialog cities={cities} onAdded={fetchData} />
           <Button variant="outline" size="sm" onClick={exportCSV}>
             <Download className="h-4 w-4 mr-1" /> Export
           </Button>
         </div>
+
       </div>
 
       <div className="flex flex-wrap gap-3">
