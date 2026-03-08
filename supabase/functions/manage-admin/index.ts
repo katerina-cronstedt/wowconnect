@@ -110,6 +110,19 @@ Deno.serve(async (req) => {
         });
       }
 
+      case "send_reset_email": {
+        const targetEmail = email;
+        if (!targetEmail) return json({ error: "E-post saknas" }, 400);
+
+        const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(targetEmail, {
+          redirectTo: `${req.headers.get("origin") || supabaseUrl}/admin/reset-password`,
+        });
+
+        if (resetError) return json({ error: resetError.message }, 500);
+
+        return json({ success: true, message: "Återställningslänk skickad via e-post" });
+      }
+
       case "generate_invite_link": {
         const targetEmail = email;
         if (!targetEmail) return json({ error: "E-post saknas" }, 400);

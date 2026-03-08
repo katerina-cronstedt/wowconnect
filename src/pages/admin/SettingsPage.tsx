@@ -179,6 +179,22 @@ export default function SettingsPage() {
     }
   };
 
+  const handleSendResetEmail = async (u: UserWithRole) => {
+    setActionLoading(u.user_id);
+    try {
+      const { data, error } = await supabase.functions.invoke("manage-admin", {
+        body: { action: "send_reset_email", target_user_id: u.user_id, email: u.email },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Återställningslänk skickad till ${u.email}`);
+    } catch (err: any) {
+      toast.error(err.message || "Kunde inte skicka återställningslänk");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleGenerateInviteLink = async (u: UserWithRole) => {
     setActionLoading(u.user_id);
     try {
@@ -338,9 +354,13 @@ export default function SettingsPage() {
                               <UserCog className="h-4 w-4 mr-2" />
                               Ändra roll
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleSendResetEmail(u)}>
+                              <Mail className="h-4 w-4 mr-2" />
+                              Skicka återställningslänk
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleResetPassword(u)}>
                               <KeyRound className="h-4 w-4 mr-2" />
-                              Lösenordsåterställning
+                              Kopiera återställningslänk
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleGenerateInviteLink(u)}>
                               <Link2 className="h-4 w-4 mr-2" />
