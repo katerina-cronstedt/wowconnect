@@ -88,10 +88,13 @@ export default function MembersPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Members</h1>
         <div className="flex gap-2">
+          <ImportMembersDialog cities={cities} onImported={fetchData} />
+          <AddMemberDialog cities={cities} onAdded={fetchData} />
           <Button variant="outline" size="sm" onClick={exportCSV}>
             <Download className="h-4 w-4 mr-1" /> Export
           </Button>
         </div>
+
       </div>
 
       <div className="flex flex-wrap gap-3">
