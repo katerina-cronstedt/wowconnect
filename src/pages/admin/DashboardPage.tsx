@@ -11,19 +11,20 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const fetchStats = async () => {
-      const [peopleRes, eventsRes] = await Promise.all([
-        supabase.from("people").select("id, engagement_status", { count: "exact" }),
-        supabase.from("events").select("id", { count: "exact" }),
+      const [totalRes, activeRes, eventsRes] = await Promise.all([
+        supabase.from("people").select("id", { count: "exact", head: true }),
+        supabase.from("people").select("id", { count: "exact", head: true }).eq("engagement_status", "Active"),
+        supabase.from("events").select("id", { count: "exact", head: true }),
       ]);
 
-      const people = peopleRes.data || [];
-      const active = people.filter((p) => p.engagement_status === "Active").length;
+      const total = totalRes.count || 0;
+      const active = activeRes.count || 0;
 
       setStats({
-        members: peopleRes.count || 0,
+        members: total,
         events: eventsRes.count || 0,
         active,
-        inactive: (peopleRes.count || 0) - active,
+        inactive: total - active,
       });
       setLoading(false);
     };
