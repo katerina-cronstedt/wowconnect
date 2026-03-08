@@ -17,7 +17,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [role, setRole] = useState<"hq_admin" | "staff" | null>(null);
+  const [role, setRole] = useState<"hq_admin" | "hq_team" | "city_team" | "staff" | null>(null);
 
   const fetchRole = async (userId: string) => {
     const { data } = await supabase
