@@ -64,6 +64,31 @@ export default function MembersPage() {
     });
   }, [people, search, cityFilter, roleFilter]);
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginated = filtered.slice((safeCurrentPage - 1) * perPage, safeCurrentPage * perPage);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, cityFilter, roleFilter, perPage]);
+
+  const pageNumbers = useMemo(() => {
+    const pages: (number | "ellipsis")[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (safeCurrentPage > 3) pages.push("ellipsis");
+      for (let i = Math.max(2, safeCurrentPage - 1); i <= Math.min(totalPages - 1, safeCurrentPage + 1); i++) {
+        pages.push(i);
+      }
+      if (safeCurrentPage < totalPages - 2) pages.push("ellipsis");
+      pages.push(totalPages);
+    }
+    return pages;
+  }, [totalPages, safeCurrentPage]);
+
   const exportCSV = () => {
     const headers = ["First Name", "Last Name", "Email", "Phone", "City", "Roles", "Status"];
     const rows = filtered.map((p) => [
