@@ -18,6 +18,8 @@ import ContactPage from "./pages/ContactPage";
 import RsvpPage from "./pages/RsvpPage";
 import NotFound from "./pages/NotFound";
 import AdminLoginPage from "./pages/admin/AdminLoginPage";
+import ForgotPasswordPage from "./pages/admin/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/admin/ResetPasswordPage";
 import AdminLayout from "./pages/admin/AdminLayout";
 import DashboardPage from "./pages/admin/DashboardPage";
 import MembersPage from "./pages/admin/MembersPage";
