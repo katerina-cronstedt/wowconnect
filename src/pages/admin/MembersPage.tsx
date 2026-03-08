@@ -1,12 +1,14 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, Download, ChevronLeft, ChevronRight } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import AddMemberDialog from "@/components/admin/AddMemberDialog";
 import ImportMembersDialog from "@/components/admin/ImportMembersDialog";
 
@@ -23,14 +25,19 @@ interface Person {
 }
 
 export default function MembersPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [cityFilter, setCityFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "all");
   const [cities, setCities] = useState<{ id: string; name: string }[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [perPage, setPerPage] = useState(100);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const { toast } = useToast();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -50,6 +57,14 @@ export default function MembersPage() {
     fetchData();
   }, [fetchData]);
 
+  // Sync URL param to state
+  useEffect(() => {
+    const urlStatus = searchParams.get("status");
+    if (urlStatus && urlStatus !== statusFilter) {
+      setStatusFilter(urlStatus);
+    }
+  }, [searchParams]);
+
   const filtered = useMemo(() => {
     return people.filter((p) => {
       const matchSearch =
@@ -60,9 +75,11 @@ export default function MembersPage() {
         p.person_cities?.some((pc) => pc.city_id === cityFilter);
       const matchRole =
         roleFilter === "all" || p.roles?.includes(roleFilter);
-      return matchSearch && matchCity && matchRole;
+      const matchStatus =
+        statusFilter === "all" || p.engagement_status === statusFilter;
+      return matchSearch && matchCity && matchRole && matchStatus;
     });
-  }, [people, search, cityFilter, roleFilter]);
+  }, [people, search, cityFilter, roleFilter, statusFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -71,7 +88,8 @@ export default function MembersPage() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, cityFilter, roleFilter, perPage]);
+    setSelectedIds(new Set());
+  }, [search, cityFilter, roleFilter, statusFilter, perPage]);
 
   const pageNumbers = useMemo(() => {
     const pages: (number | "ellipsis")[] = [];
@@ -88,6 +106,60 @@ export default function MembersPage() {
     }
     return pages;
   }, [totalPages, safeCurrentPage]);
+
+  const allPageSelected = paginated.length > 0 && paginated.every((p) => selectedIds.has(p.id));
+  const someSelected = selectedIds.size > 0;
+
+  const toggleSelectAll = () => {
+    if (allPageSelected) {
+      const newSet = new Set(selectedIds);
+      paginated.forEach((p) => newSet.delete(p.id));
+      setSelectedIds(newSet);
+    } else {
+      const newSet = new Set(selectedIds);
+      paginated.forEach((p) => newSet.add(p.id));
+      setSelectedIds(newSet);
+    }
+  };
+
+  const selectAllFiltered = () => {
+    setSelectedIds(new Set(filtered.map((p) => p.id)));
+  };
+
+  const toggleSelect = (id: string) => {
+    const newSet = new Set(selectedIds);
+    if (newSet.has(id)) newSet.delete(id);
+    else newSet.add(id);
+    setSelectedIds(newSet);
+  };
+
+  const bulkActivate = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkLoading(true);
+    const ids = Array.from(selectedIds);
+    const { error } = await supabase
+      .from("people")
+      .update({ engagement_status: "Active" })
+      .in("id", ids);
+    setBulkLoading(false);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Updated", description: `${ids.length} members set to Active` });
+      setSelectedIds(new Set());
+      fetchData();
+    }
+  };
+
+  const handleStatusFilterChange = (value: string) => {
+    setStatusFilter(value);
+    if (value === "all") {
+      searchParams.delete("status");
+    } else {
+      searchParams.set("status", value);
+    }
+    setSearchParams(searchParams, { replace: true });
+  };
 
   const exportCSV = () => {
     const headers = ["First Name", "Last Name", "Email", "Phone", "City", "Roles", "Status"];
@@ -120,7 +192,6 @@ export default function MembersPage() {
             <Download className="h-4 w-4 mr-1" /> Export
           </Button>
         </div>
-
       </div>
 
       <div className="flex flex-wrap gap-3">
@@ -155,9 +226,37 @@ export default function MembersPage() {
             <SelectItem value="mentee">Mentee</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder="All statuses" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            <SelectItem value="Active">Active</SelectItem>
+            <SelectItem value="Inactive">Inactive</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      <div className="text-sm text-muted-foreground">{filtered.length} members</div>
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-muted-foreground">{filtered.length} members</div>
+        {someSelected && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">{selectedIds.size} selected</span>
+            {selectedIds.size < filtered.length && (
+              <Button variant="link" size="sm" onClick={selectAllFiltered} className="text-xs">
+                Select all {filtered.length}
+              </Button>
+            )}
+            <Button size="sm" onClick={bulkActivate} disabled={bulkLoading}>
+              {bulkLoading ? "Updating..." : "Set Active"}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+              Clear
+            </Button>
+          </div>
+        )}
+      </div>
 
       {loading ? (
         <div className="text-center py-12 text-muted-foreground">Loading...</div>
@@ -167,6 +266,13 @@ export default function MembersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[40px]">
+                    <Checkbox
+                      checked={allPageSelected}
+                      onCheckedChange={toggleSelectAll}
+                      aria-label="Select all on page"
+                    />
+                  </TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>City</TableHead>
@@ -176,7 +282,14 @@ export default function MembersPage() {
               </TableHeader>
               <TableBody>
                 {paginated.map((p) => (
-                  <TableRow key={p.id}>
+                  <TableRow key={p.id} data-state={selectedIds.has(p.id) ? "selected" : undefined}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedIds.has(p.id)}
+                        onCheckedChange={() => toggleSelect(p.id)}
+                        aria-label={`Select ${p.first_name}`}
+                      />
+                    </TableCell>
                     <TableCell>
                       <Link to={`/admin/members/${p.id}`} className="font-medium text-primary hover:underline">
                         {p.first_name} {p.last_name}
@@ -204,7 +317,7 @@ export default function MembersPage() {
                 ))}
                 {paginated.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                       No members found
                     </TableCell>
                   </TableRow>
