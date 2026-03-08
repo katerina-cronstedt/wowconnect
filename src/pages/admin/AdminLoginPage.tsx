@@ -27,6 +27,12 @@ export default function AdminLoginPage() {
     }
   }, []);
 
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate("/admin", { replace: true });
+    }
+  }, [authLoading, user, navigate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
