@@ -46,8 +46,11 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="border-t border-primary-foreground/10 mt-12 pt-8 text-center">
+        <div className="border-t border-primary-foreground/10 mt-12 pt-8 flex items-center justify-between">
           <p className="text-xs text-primary-foreground/40">© {new Date().getFullYear()} WOW Foundation. Alla rättigheter förbehållna.</p>
+          <Link to="/admin/login" className="text-xs text-primary-foreground/40 hover:text-primary-foreground transition-colors">
+            Logga in
+          </Link>
         </div>
       </div>
     </footer>

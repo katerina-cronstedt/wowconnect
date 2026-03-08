@@ -164,6 +164,7 @@ export default function Navbar() {
               </div>
               <Link to="/engagera-dig" className="block py-2 text-foreground/80 font-medium" onClick={() => setMobileOpen(false)}>Engagera dig</Link>
               <Link to="/wow-galan" className="block py-2 text-foreground/80 font-medium" onClick={() => setMobileOpen(false)}>WOW-Galan</Link>
+              <Link to="/admin/login" className="block py-2 text-foreground/60 font-medium text-sm" onClick={() => setMobileOpen(false)}>Logga in</Link>
               <Link to="/join" className="inline-block mt-2 bg-accent text-accent-foreground px-6 py-2.5 rounded-full font-semibold text-sm" onClick={() => setMobileOpen(false)}>Join Us</Link>
             </div>
           </motion.div>
