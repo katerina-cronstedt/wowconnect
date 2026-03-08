@@ -108,6 +108,12 @@ export default function Navbar() {
 
         <div className="hidden lg:flex items-center gap-4">
           <Link
+            to="/admin/login"
+            className="text-foreground/60 hover:text-primary font-medium text-sm transition-colors"
+          >
+            Logga in
+          </Link>
+          <Link
             to="/join"
             className="bg-accent text-accent-foreground px-6 py-2.5 rounded-full font-semibold text-sm hover:opacity-90 transition-opacity"
           >
