@@ -383,6 +383,7 @@ export type Database = {
           media_consent: boolean | null
           media_consent_timestamp: string | null
           notes: string | null
+          pending_signup: boolean
           phone: string | null
           profession: string | null
           roles: string[] | null
@@ -429,6 +430,7 @@ export type Database = {
           media_consent?: boolean | null
           media_consent_timestamp?: string | null
           notes?: string | null
+          pending_signup?: boolean
           phone?: string | null
           profession?: string | null
           roles?: string[] | null
@@ -475,6 +477,7 @@ export type Database = {
           media_consent?: boolean | null
           media_consent_timestamp?: string | null
           notes?: string | null
+          pending_signup?: boolean
           phone?: string | null
           profession?: string | null
           roles?: string[] | null
@@ -705,7 +708,7 @@ export type Database = {
     Enums: {
       app_role: "hq_admin" | "staff"
       attendance_source: "rsvp" | "walk_in"
-      attendance_status: "arrived" | "late" | "no_show"
+      attendance_status: "arrived" | "late" | "no_show" | "excused"
       cefr_level: "A0" | "A1" | "A2" | "B1" | "B2" | "C1" | "C2"
       consent_source: "website_signup" | "event_walkin" | "import"
       custom_field_entity: "person" | "event"
@@ -858,7 +861,7 @@ export const Constants = {
     Enums: {
       app_role: ["hq_admin", "staff"],
       attendance_source: ["rsvp", "walk_in"],
-      attendance_status: ["arrived", "late", "no_show"],
+      attendance_status: ["arrived", "late", "no_show", "excused"],
       cefr_level: ["A0", "A1", "A2", "B1", "B2", "C1", "C2"],
       consent_source: ["website_signup", "event_walkin", "import"],
       custom_field_entity: ["person", "event"],
