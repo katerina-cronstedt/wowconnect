@@ -12,7 +12,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { email, password, display_name } = await req.json();
+    const { email, password, display_name, role: requestedRole } = await req.json();
+    const assignRole = requestedRole === "staff" ? "staff" : "hq_admin";
 
     if (!email || !password) {
       return new Response(
