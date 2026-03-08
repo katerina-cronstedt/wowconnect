@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Shield, ShieldCheck, MapPin } from "lucide-react";
+import { Loader2, Shield, ShieldCheck, MapPin, Copy, Check, Mail, Link2 } from "lucide-react";
 
 type AppRole = "hq_admin" | "hq_team" | "city_team";
 
@@ -27,15 +27,22 @@ interface UserWithRole {
   display_name?: string;
 }
 
+interface InviteResult {
+  email: string;
+  role: string;
+  invite_link: string | null;
+}
+
 export default function SettingsPage() {
-  const { user, role, session } = useAuth();
+  const { user, role } = useAuth();
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [newRole, setNewRole] = useState<AppRole>("city_team");
   const [creating, setCreating] = useState(false);
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
+  const [inviteResult, setInviteResult] = useState<InviteResult | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const isHqAdmin = role === "hq_admin";
   const isHqTeam = role === "hq_team";
@@ -49,7 +56,6 @@ export default function SettingsPage() {
 
     if (!roles) { setLoadingUsers(false); return; }
 
-    // Get profiles for display names/emails
     const userIds = roles.map((r) => r.user_id);
     const { data: profiles } = await supabase
       .from("profiles")
@@ -71,29 +77,42 @@ export default function SettingsPage() {
 
   useEffect(() => { fetchUsers(); }, []);
 
-  const handleCreateUser = async (e: React.FormEvent) => {
+  const handleInviteUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) return;
+    if (!email) return;
     setCreating(true);
+    setInviteResult(null);
     try {
       const { data, error } = await supabase.functions.invoke("create-admin", {
-        body: { email, password, display_name: displayName || email, role: newRole },
+        body: { email, display_name: displayName || email, role: newRole },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      toast.success(`Användare ${email} skapad som ${roleLabels[newRole]?.label || newRole}`);
+
+      setInviteResult({
+        email: data.email,
+        role: newRole,
+        invite_link: data.invite_link,
+      });
+      toast.success(`Inbjudan skickad till ${email}`);
       setEmail("");
-      setPassword("");
       setDisplayName("");
       fetchUsers();
     } catch (err: any) {
-      toast.error(err.message || "Kunde inte skapa användare");
+      toast.error(err.message || "Kunde inte bjuda in användare");
     } finally {
       setCreating(false);
     }
   };
 
-  // Determine which roles the current user can create
+  const handleCopyLink = async () => {
+    if (!inviteResult?.invite_link) return;
+    await navigator.clipboard.writeText(inviteResult.invite_link);
+    setCopied(true);
+    toast.success("Inbjudningslänk kopierad!");
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   const creatableRoles: AppRole[] = isHqAdmin
     ? ["hq_admin", "hq_team", "city_team"]
     : isHqTeam
@@ -157,31 +176,72 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Create user form */}
+      {/* Invite user form */}
       {canCreateUsers && (
         <Card>
-          <CardHeader><CardTitle className="text-base">Skapa ny användare</CardTitle></CardHeader>
-          <CardContent>
-            <form onSubmit={handleCreateUser} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>E-post</Label>
-                  <Input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="user@wowfoundation.se" />
+          <CardHeader><CardTitle className="text-base">Bjud in ny användare</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            {inviteResult ? (
+              <div className="space-y-4">
+                <div className="bg-primary/10 text-primary rounded-md p-4 text-sm space-y-1">
+                  <div className="flex items-center gap-2 font-medium">
+                    <Mail className="h-4 w-4" />
+                    Inbjudan skickad till {inviteResult.email}
+                  </div>
+                  <p className="text-muted-foreground">
+                    En e-postinbjudan har skickats. Användaren väljer sitt eget lösenord.
+                    Roll: <strong>{roleLabels[inviteResult.role]?.label || inviteResult.role}</strong>
+                  </p>
                 </div>
-                <div className="space-y-2">
-                  <Label>Lösenord</Label>
-                  <Input type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={8} placeholder="Min 8 tecken" />
-                </div>
+
+                {inviteResult.invite_link && (
+                  <div className="border rounded-md p-4 space-y-3">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <Link2 className="h-4 w-4" />
+                      Inbjudningslänk
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Du kan också dela denna länk direkt med användaren.
+                    </p>
+                    <div className="flex gap-2">
+                      <Input
+                        readOnly
+                        value={inviteResult.invite_link}
+                        className="text-xs font-mono"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCopyLink}
+                        className="shrink-0 gap-1.5"
+                      >
+                        {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                        {copied ? "Kopierad" : "Kopiera"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                <Button variant="outline" onClick={() => setInviteResult(null)}>
+                  Bjud in en till
+                </Button>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Visningsnamn</Label>
-                  <Input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Valfritt" />
+            ) : (
+              <form onSubmit={handleInviteUser} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>E-post</Label>
+                    <Input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="user@wowfoundation.se" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Visningsnamn</Label>
+                    <Input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Valfritt" />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Roll</Label>
                   <Select value={newRole} onValueChange={(v: AppRole) => setNewRole(v)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="w-full sm:w-72"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {creatableRoles.map((r) => (
                         <SelectItem key={r} value={r}>
@@ -197,11 +257,11 @@ export default function SettingsPage() {
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
-              <Button type="submit" disabled={creating}>
-                {creating ? <><Loader2 className="h-4 w-4 animate-spin mr-1" /> Skapar...</> : "Skapa användare"}
-              </Button>
-            </form>
+                <Button type="submit" disabled={creating} className="gap-2">
+                  {creating ? <><Loader2 className="h-4 w-4 animate-spin" /> Skickar...</> : <><Mail className="h-4 w-4" /> Skicka inbjudan</>}
+                </Button>
+              </form>
+            )}
           </CardContent>
         </Card>
       )}
