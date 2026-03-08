@@ -6,7 +6,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  role: "hq_admin" | "staff" | null;
+  role: "hq_admin" | "hq_team" | "city_team" | "staff" | null;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
@@ -17,7 +17,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [role, setRole] = useState<"hq_admin" | "staff" | null>(null);
+  const [role, setRole] = useState<"hq_admin" | "hq_team" | "city_team" | "staff" | null>(null);
 
   const fetchRole = async (userId: string) => {
     const { data } = await supabase
@@ -26,7 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq("user_id", userId)
       .limit(1)
       .single();
-    setRole((data?.role as "hq_admin" | "staff") ?? null);
+    setRole((data?.role as "hq_admin" | "hq_team" | "city_team" | "staff") ?? null);
   };
 
   useEffect(() => {

@@ -13,7 +13,9 @@ Deno.serve(async (req) => {
 
   try {
     const { email, password, display_name, role: requestedRole } = await req.json();
-    const assignRole = requestedRole === "staff" ? "staff" : "hq_admin";
+
+    const validRoles = ["hq_admin", "hq_team", "city_team"];
+    const assignRole = validRoles.includes(requestedRole) ? requestedRole : "city_team";
 
     if (!email || !password) {
       return new Response(
@@ -28,49 +30,57 @@ Deno.serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    // Check if any hq_admin already exists
-    const { data: existingAdmins } = await supabaseAdmin
-      .from("user_roles")
-      .select("id")
-      .eq("role", "hq_admin")
-      .limit(1);
-
-    if (existingAdmins && existingAdmins.length > 0) {
-      // If admins exist, require the caller to be an hq_admin
-      const authHeader = req.headers.get("Authorization");
-      if (!authHeader) {
-        return new Response(
-          JSON.stringify({ error: "An admin already exists. You must be authenticated as HQ admin to create more." }),
-          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const callerClient = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_ANON_KEY")!,
-        { global: { headers: { Authorization: authHeader } }, auth: { autoRefreshToken: false, persistSession: false } }
+    // Require caller to be authenticated
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "Authentication required" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
-      const { data: { user: caller } } = await callerClient.auth.getUser();
-      if (!caller) {
-        return new Response(
-          JSON.stringify({ error: "Invalid auth token" }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+    }
 
-      const { data: callerRole } = await supabaseAdmin
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", caller.id)
-        .eq("role", "hq_admin")
-        .single();
+    const callerClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } }, auth: { autoRefreshToken: false, persistSession: false } }
+    );
+    const { data: { user: caller } } = await callerClient.auth.getUser();
+    if (!caller) {
+      return new Response(
+        JSON.stringify({ error: "Invalid auth token" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
-      if (!callerRole) {
-        return new Response(
-          JSON.stringify({ error: "Only HQ admins can create new admin users" }),
-          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+    // Check caller's role
+    const { data: callerRoles } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", caller.id);
+
+    const callerRoleList = (callerRoles || []).map((r: any) => r.role);
+    const isHqAdmin = callerRoleList.includes("hq_admin");
+    const isHqTeam = callerRoleList.includes("hq_team");
+
+    // Only hq_admin can create hq_admin or hq_team
+    if (assignRole === "hq_admin" && !isHqAdmin) {
+      return new Response(
+        JSON.stringify({ error: "Bara HQ Admin kan skapa HQ Admin-användare" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    if (assignRole === "hq_team" && !isHqAdmin) {
+      return new Response(
+        JSON.stringify({ error: "Bara HQ Admin kan skapa HQ Team-användare" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    // hq_admin and hq_team can create city_team
+    if (assignRole === "city_team" && !isHqAdmin && !isHqTeam) {
+      return new Response(
+        JSON.stringify({ error: "Bara HQ Admin eller HQ Team kan skapa City Team-användare" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // Create the user
@@ -88,7 +98,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Assign hq_admin role
+    // Assign role
     const { error: roleError } = await supabaseAdmin
       .from("user_roles")
       .insert({ user_id: newUser.user.id, role: assignRole });
