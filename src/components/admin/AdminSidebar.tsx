@@ -80,7 +80,7 @@ export function AdminSidebar() {
             <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
             <Button variant="ghost" size="sm" className="w-full justify-start" onClick={handleSignOut}>
               <LogOut className="mr-2 h-4 w-4" />
-              Sign out
+              Logga ut
             </Button>
           </div>
         )}

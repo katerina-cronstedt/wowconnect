@@ -231,6 +231,7 @@ export type Database = {
       }
       events: {
         Row: {
+          address: string | null
           capacity: number | null
           city_id: string | null
           created_at: string
@@ -239,13 +240,18 @@ export type Database = {
           end_datetime: string | null
           event_type: Database["public"]["Enums"]["event_type"]
           id: string
+          is_public: boolean
           location: string | null
+          map_link: string | null
+          rsvp_enabled: boolean
           start_datetime: string
           status: Database["public"]["Enums"]["event_status"]
           title: string
           updated_at: string
+          waitlist_enabled: boolean
         }
         Insert: {
+          address?: string | null
           capacity?: number | null
           city_id?: string | null
           created_at?: string
@@ -254,13 +260,18 @@ export type Database = {
           end_datetime?: string | null
           event_type?: Database["public"]["Enums"]["event_type"]
           id?: string
+          is_public?: boolean
           location?: string | null
+          map_link?: string | null
+          rsvp_enabled?: boolean
           start_datetime: string
           status?: Database["public"]["Enums"]["event_status"]
           title: string
           updated_at?: string
+          waitlist_enabled?: boolean
         }
         Update: {
+          address?: string | null
           capacity?: number | null
           city_id?: string | null
           created_at?: string
@@ -269,11 +280,15 @@ export type Database = {
           end_datetime?: string | null
           event_type?: Database["public"]["Enums"]["event_type"]
           id?: string
+          is_public?: boolean
           location?: string | null
+          map_link?: string | null
+          rsvp_enabled?: boolean
           start_datetime?: string
           status?: Database["public"]["Enums"]["event_status"]
           title?: string
           updated_at?: string
+          waitlist_enabled?: boolean
         }
         Relationships: [
           {

@@ -37,7 +37,7 @@ export default function AdminLayout() {
         <div className="flex-1 flex flex-col min-w-0">
           <header className="h-14 flex items-center border-b border-border px-4 bg-background shrink-0">
             <SidebarTrigger className="mr-4" />
-            <span className="text-sm text-muted-foreground">WOW CRM</span>
+            <span className="text-sm text-muted-foreground">WOW Connect</span>
           </header>
           <main className="flex-1 overflow-auto p-6">
             <Outlet />
