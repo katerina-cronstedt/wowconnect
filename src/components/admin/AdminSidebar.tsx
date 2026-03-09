@@ -19,11 +19,11 @@ import {
 import { Button } from "@/components/ui/button";
 
 const navItems = [
-  { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
-  { title: "Members", url: "/admin/members", icon: Users },
-  { title: "Events", url: "/admin/events", icon: Calendar },
-  { title: "Reports", url: "/admin/reports", icon: BarChart3 },
-  { title: "Settings", url: "/admin/settings", icon: Settings },
+  { title: "Översikt", url: "/admin", icon: LayoutDashboard },
+  { title: "Medlemmar", url: "/admin/members", icon: Users },
+  { title: "Evenemang", url: "/admin/events", icon: Calendar },
+  { title: "Rapporter", url: "/admin/reports", icon: BarChart3 },
+  { title: "Inställningar", url: "/admin/settings", icon: Settings },
 ];
 
 export function AdminSidebar() {
