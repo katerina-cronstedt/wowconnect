@@ -44,8 +44,8 @@ export function AdminSidebar() {
           <div className="flex items-center gap-3">
             <img src={wowLogo} alt="WOW" className="h-8 w-auto" />
             <div>
-              <p className="text-sm font-semibold">WOW CRM</p>
-              <p className="text-xs text-muted-foreground capitalize">{role}</p>
+              <p className="text-sm font-semibold">WOW Connect</p>
+              <p className="text-xs text-muted-foreground">Plattformen för WOW-nätverket</p>
             </div>
           </div>
         )}
