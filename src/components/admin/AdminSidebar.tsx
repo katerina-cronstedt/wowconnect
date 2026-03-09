@@ -19,11 +19,11 @@ import {
 import { Button } from "@/components/ui/button";
 
 const navItems = [
-  { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
-  { title: "Members", url: "/admin/members", icon: Users },
-  { title: "Events", url: "/admin/events", icon: Calendar },
-  { title: "Reports", url: "/admin/reports", icon: BarChart3 },
-  { title: "Settings", url: "/admin/settings", icon: Settings },
+  { title: "Översikt", url: "/admin", icon: LayoutDashboard },
+  { title: "Medlemmar", url: "/admin/members", icon: Users },
+  { title: "Evenemang", url: "/admin/events", icon: Calendar },
+  { title: "Rapporter", url: "/admin/reports", icon: BarChart3 },
+  { title: "Inställningar", url: "/admin/settings", icon: Settings },
 ];
 
 export function AdminSidebar() {
@@ -44,15 +44,15 @@ export function AdminSidebar() {
           <div className="flex items-center gap-3">
             <img src={wowLogo} alt="WOW" className="h-8 w-auto" />
             <div>
-              <p className="text-sm font-semibold">WOW CRM</p>
-              <p className="text-xs text-muted-foreground capitalize">{role}</p>
+              <p className="text-sm font-semibold">WOW Connect</p>
+              <p className="text-xs text-muted-foreground">Plattformen för WOW-nätverket</p>
             </div>
           </div>
         )}
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel>Navigering</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {navItems.map((item) => (
@@ -80,7 +80,7 @@ export function AdminSidebar() {
             <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
             <Button variant="ghost" size="sm" className="w-full justify-start" onClick={handleSignOut}>
               <LogOut className="mr-2 h-4 w-4" />
-              Sign out
+              Logga ut
             </Button>
           </div>
         )}
