@@ -6,7 +6,8 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  role: "hq_admin" | "hq_team" | "city_team" | "staff" | null;
+  role: "hq_admin" | "hq_team" | "city_team" | "staff" | "volunteer" | "member" | null;
+  personId: string | null;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
@@ -17,16 +18,65 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [role, setRole] = useState<"hq_admin" | "hq_team" | "city_team" | "staff" | null>(null);
+  const [role, setRole] = useState<"hq_admin" | "hq_team" | "city_team" | "staff" | "volunteer" | "member" | null>(null);
+  const [personId, setPersonId] = useState<string | null>(null);
 
-  const fetchRole = async (userId: string) => {
-    const { data } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .limit(1)
-      .single();
-    setRole((data?.role as "hq_admin" | "hq_team" | "city_team" | "staff") ?? null);
+  const fetchRole = async (userId: string, emailAddress?: string) => {
+    try {
+      // 1. Fetch user role from user_roles
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId)
+        .limit(1)
+        .maybeSingle();
+      
+      if (roleData?.role) {
+        setRole(roleData.role as any);
+        setPersonId(null);
+        return;
+      }
+
+      // 2. Query people table to see if user is a member
+      // First, try matching by auth_user_id
+      let { data: personData } = await supabase
+        .from("people")
+        .select("id")
+        .eq("auth_user_id", userId)
+        .limit(1)
+        .maybeSingle();
+
+      // If not linked yet, try matching by email
+      if (!personData && emailAddress) {
+        const { data: personByEmail } = await supabase
+          .from("people")
+          .select("id")
+          .eq("email", emailAddress.toLowerCase())
+          .limit(1)
+          .maybeSingle();
+        personData = personByEmail;
+
+        // If found by email, proactively update the auth_user_id (trigger should handle this, but it adds robustness)
+        if (personByEmail) {
+          await supabase
+            .from("people")
+            .update({ auth_user_id: userId })
+            .eq("id", personByEmail.id);
+        }
+      }
+
+      if (personData) {
+        setRole("member");
+        setPersonId(personData.id);
+      } else {
+        setRole(null);
+        setPersonId(null);
+      }
+    } catch (e) {
+      console.error("Error fetching user role / person record:", e);
+      setRole(null);
+      setPersonId(null);
+    }
   };
 
   useEffect(() => {
@@ -52,22 +102,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        setLoading(true);
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
-          setTimeout(() => fetchRole(session.user.id), 0);
+          await fetchRole(session.user.id, session.user.email);
         } else {
           setRole(null);
+          setPersonId(null);
         }
         setLoading(false);
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      setLoading(true);
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchRole(session.user.id);
+        await fetchRole(session.user.id, session.user.email);
       }
       setLoading(false);
     });
@@ -83,10 +136,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     await supabase.auth.signOut();
     setRole(null);
+    setPersonId(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, role, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, role, personId, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

@@ -16,12 +16,16 @@ import GalaPage from "./pages/GalaPage";
 import JoinPage from "./pages/JoinPage";
 import ContactPage from "./pages/ContactPage";
 import RsvpPage from "./pages/RsvpPage";
+import EventRegistrationPage from "./pages/EventRegistrationPage";
 import NotFound from "./pages/NotFound";
 import AdminLoginPage from "./pages/admin/AdminLoginPage";
 import ForgotPasswordPage from "./pages/admin/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/admin/ResetPasswordPage";
 import AdminLayout from "./pages/admin/AdminLayout";
 import DashboardPage from "./pages/admin/DashboardPage";
+import MemberLayout from "./pages/member/MemberLayout";
+import MemberDashboardPage from "./pages/member/MemberDashboardPage";
+import UnregisteredPage from "./pages/member/UnregisteredPage";
 import MembersPage from "./pages/admin/MembersPage";
 import MemberProfilePage from "./pages/admin/MemberProfilePage";
 import EventsPage from "./pages/admin/EventsPage";
@@ -51,6 +55,7 @@ const App = () => (
               <Route path="/wow-galan" element={<GalaPage />} />
               <Route path="/join" element={<JoinPage />} />
               <Route path="/kontakt" element={<ContactPage />} />
+              <Route path="/events/:id/register" element={<EventRegistrationPage />} />
             </Route>
 
             {/* RSVP (public, no layout) */}
@@ -69,7 +74,11 @@ const App = () => (
               <Route path="reports" element={<ReportsPage />} />
               <Route path="settings" element={<SettingsPage />} />
             </Route>
-
+            {/* Member Portal */}
+            <Route path="/member" element={<MemberLayout />}>
+              <Route path="dashboard" element={<MemberDashboardPage />} />
+            </Route>
+            <Route path="/member/unregistered" element={<UnregisteredPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

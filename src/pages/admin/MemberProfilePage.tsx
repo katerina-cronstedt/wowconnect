@@ -9,6 +9,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Save } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { Switch } from "@/components/ui/switch";
+import { format } from "date-fns";
+import { Calendar as CalendarIcon } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 export default function MemberProfilePage() {
   const { id } = useParams<{ id: string }>();
@@ -59,6 +65,10 @@ export default function MemberProfilePage() {
         last_name: person.last_name,
         phone: person.phone,
         profession: person.profession,
+        country_of_origin: person.country_of_origin,
+        birthday: person.birthday,
+        consent_opt_in: person.consent_opt_in,
+        media_consent: person.media_consent,
         notes: person.notes,
         roles: person.roles,
         tags: person.tags,
@@ -122,6 +132,35 @@ export default function MemberProfilePage() {
                   <Label>Profession</Label>
                   <Input value={person.profession || ""} onChange={(e) => setPerson({ ...person, profession: e.target.value })} />
                 </div>
+                <div>
+                  <Label>Ursprungsland (Country of Origin)</Label>
+                  <Input value={person.country_of_origin || ""} onChange={(e) => setPerson({ ...person, country_of_origin: e.target.value })} />
+                </div>
+                <div>
+                  <Label>Födelsedag (Birthday)</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !person.birthday && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {person.birthday ? format(new Date(person.birthday), "yyyy-MM-dd") : <span>Välj datum</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={person.birthday ? new Date(person.birthday) : undefined}
+                        onSelect={(date) => setPerson({ ...person, birthday: date ? format(date, "yyyy-MM-dd") : null })}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
               </CardContent>
             </Card>
 
@@ -165,24 +204,46 @@ export default function MemberProfilePage() {
 
           <Card>
             <CardHeader><CardTitle className="text-base">GDPR & Consent</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div>
-                <span className="text-muted-foreground">Data consent:</span>
-                <p className="font-medium">{person.consent_opt_in ? "Yes" : "No"}</p>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-2 rounded-lg border bg-muted/30">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">Data Consent</Label>
+                    <p className="text-xs text-muted-foreground">Medlemmen tillåter WOW att spara personliga uppgifter.</p>
+                  </div>
+                  <Switch
+                    checked={person.consent_opt_in === true}
+                    onCheckedChange={(checked) => setPerson({ ...person, consent_opt_in: checked })}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-2 rounded-lg border bg-muted/30">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">Media Consent</Label>
+                    <p className="text-xs text-muted-foreground">Tillåtelse att använda namn, bild eller röst i kommunikation.</p>
+                  </div>
+                  <Switch
+                    checked={person.media_consent === true}
+                    onCheckedChange={(checked) => setPerson({ ...person, media_consent: checked })}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 pt-2">
+                  <div>
+                    <span className="text-xs text-muted-foreground">Source:</span>
+                    <p className="font-medium text-sm">{person.consent_source || "—"}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">Consent date:</span>
+                    <p className="font-medium text-sm">
+                      {person.consent_timestamp ? new Date(person.consent_timestamp).toLocaleDateString() : person.created_at ? new Date(person.created_at).toLocaleDateString() : "—"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 p-3 bg-muted/50 rounded-md text-[11px] leading-relaxed text-muted-foreground italic border-l-2 border-accent">
+                  "Jag tillåter WOW att spara personliga uppgifter om mig så som namn, adress, telefonnummer, ålder, nationalitet, etc."
+                </div>
               </div>
-              <div>
-                <span className="text-muted-foreground">Source:</span>
-                <p className="font-medium">{person.consent_source || "—"}</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Media consent:</span>
-                <p className="font-medium">{person.media_consent === true ? "Yes" : person.media_consent === false ? "No" : "—"}</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Consent date:</span>
-                <p className="font-medium">{person.consent_timestamp ? new Date(person.consent_timestamp).toLocaleDateString() : "—"}</p>
-              </div>
-            </CardContent>
           </Card>
 
           <Card>

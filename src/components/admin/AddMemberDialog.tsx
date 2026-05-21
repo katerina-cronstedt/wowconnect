@@ -23,6 +23,7 @@ export default function AddMemberDialog({ cities, onAdded }: Props) {
     phone: "",
     profession: "",
     country_of_origin: "",
+    birthday: "",
     city_id: "",
   });
 
@@ -58,6 +59,7 @@ export default function AddMemberDialog({ cities, onAdded }: Props) {
           phone: form.phone.trim() || null,
           profession: form.profession.trim() || null,
           country_of_origin: form.country_of_origin.trim() || null,
+          birthday: form.birthday || null,
           roles: ["member"],
           engagement_status: "Active",
         })
@@ -75,7 +77,7 @@ export default function AddMemberDialog({ cities, onAdded }: Props) {
       }
 
       toast.success("Medlem tillagd!");
-      setForm({ first_name: "", last_name: "", email: "", phone: "", profession: "", country_of_origin: "", city_id: "" });
+      setForm({ first_name: "", last_name: "", email: "", phone: "", profession: "", country_of_origin: "", birthday: "", city_id: "" });
       setOpen(false);
       onAdded();
     } catch (err: any) {
@@ -122,6 +124,10 @@ export default function AddMemberDialog({ cities, onAdded }: Props) {
           <div className="space-y-1.5">
             <Label>Ursprungsland</Label>
             <Input value={form.country_of_origin} onChange={(e) => set("country_of_origin", e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Födelsedag</Label>
+            <Input type="date" value={form.birthday} onChange={(e) => set("birthday", e.target.value)} />
           </div>
           <div className="space-y-1.5">
             <Label>Stad</Label>

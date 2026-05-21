@@ -18,6 +18,8 @@ interface Person {
   first_name: string;
   last_name: string;
   phone: string | null;
+  profession: string | null;
+  country_of_origin: string | null;
   engagement_status: string | null;
   roles: string[];
   created_at: string;
@@ -47,7 +49,7 @@ export default function MembersPage() {
     while (hasMore) {
       const { data } = await supabase
         .from("people")
-        .select("id, email, first_name, last_name, phone, engagement_status, roles, created_at, person_cities(city_id, is_primary, cities(name))")
+        .select("id, email, first_name, last_name, phone, profession, country_of_origin, engagement_status, roles, created_at, person_cities(city_id, is_primary, cities(name))")
         .order("created_at", { ascending: false })
         .range(from, from + pageSize - 1);
       const batch = (data as unknown as Person[]) || [];
@@ -178,10 +180,13 @@ export default function MembersPage() {
   };
 
   const exportCSV = () => {
-    const headers = ["First Name", "Last Name", "Email", "Phone", "City", "Roles", "Status"];
+    const headers = ["First Name", "Last Name", "Join Date", "Country of Origin", "Profession", "Email", "Phone", "City", "Roles", "Status"];
     const rows = filtered.map((p) => [
       p.first_name,
       p.last_name,
+      new Date(p.created_at).toLocaleDateString(),
+      p.country_of_origin || "",
+      p.profession || "",
       p.email,
       p.phone || "",
       p.person_cities?.map((pc) => pc.cities?.name).join("; ") || "",
@@ -289,8 +294,13 @@ export default function MembersPage() {
                       aria-label="Select all on page"
                     />
                   </TableHead>
-                  <TableHead>Name</TableHead>
+                  <TableHead>First Name</TableHead>
+                  <TableHead>Last Name</TableHead>
+                  <TableHead>Join Date</TableHead>
+                  <TableHead>Country</TableHead>
+                  <TableHead>Profession</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>Phone</TableHead>
                   <TableHead>City</TableHead>
                   <TableHead>Roles</TableHead>
                   <TableHead>Status</TableHead>
@@ -308,24 +318,35 @@ export default function MembersPage() {
                     </TableCell>
                     <TableCell>
                       <Link to={`/admin/members/${p.id}`} className="font-medium text-primary hover:underline">
-                        {p.first_name} {p.last_name}
+                        {p.first_name}
                       </Link>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{p.email}</TableCell>
+                    <TableCell>
+                      <Link to={`/admin/members/${p.id}`} className="font-medium text-primary hover:underline">
+                        {p.last_name}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                      {new Date(p.created_at).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="text-sm">{p.country_of_origin || "—"}</TableCell>
+                    <TableCell className="text-sm">{p.profession || "—"}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{p.email}</TableCell>
+                    <TableCell className="text-sm whitespace-nowrap">{p.phone || "—"}</TableCell>
                     <TableCell>
                       {p.person_cities?.map((pc) => (
-                        <Badge key={pc.city_id} variant="secondary" className="mr-1 text-xs">
+                        <Badge key={pc.city_id} variant="secondary" className="mr-1 text-[10px] px-1.5 py-0">
                           {pc.cities?.name}
                         </Badge>
                       ))}
                     </TableCell>
                     <TableCell>
                       {p.roles?.map((r) => (
-                        <Badge key={r} variant="outline" className="mr-1 text-xs capitalize">{r}</Badge>
+                        <Badge key={r} variant="outline" className="mr-1 text-[10px] px-1.5 py-0 capitalize">{r}</Badge>
                       ))}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={p.engagement_status === "Active" ? "default" : "secondary"}>
+                      <Badge variant={p.engagement_status === "Active" ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
                         {p.engagement_status || "—"}
                       </Badge>
                     </TableCell>

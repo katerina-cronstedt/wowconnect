@@ -19,15 +19,16 @@ export default function AdminLayout() {
     return <Navigate to="/admin/login" state={{ from: location }} replace />;
   }
 
+  if (role === "member") {
+    return <Navigate to="/member/dashboard" replace />;
+  }
+
   if (!role) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-center p-8">
-        <div>
-          <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
-          <p className="text-muted-foreground">You do not have CRM access. Contact an administrator.</p>
-        </div>
-      </div>
-    );
+    return <Navigate to="/member/unregistered" replace />;
+  }
+
+  if (role === "volunteer" && location.pathname === "/admin") {
+    return <Navigate to="/admin/events" replace />;
   }
 
   return (

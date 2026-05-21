@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { Menu, X, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import wowLogo from "@/assets/wow-logo.png";
+import { useAuth } from "@/hooks/useAuth";
 
 const cities = [
   { name: "Borås", slug: "boras" },
@@ -61,6 +62,21 @@ const NavDropdown = ({ label, items, isOpen, onToggle }: DropdownProps) => {
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const { user, role, signOut } = useAuth();
+
+  const getDashboardLink = () => {
+    if (!user) return "/admin/login";
+    if (role === "hq_admin" || role === "hq_team" || role === "city_team" || role === "staff") {
+      return "/admin";
+    } else if (role === "volunteer") {
+      return "/admin/events";
+    } else if (role === "member") {
+      return "/member/dashboard";
+    } else {
+      return "/member/unregistered";
+    }
+  };
+  const dashboardLink = getDashboardLink();
 
   const cityItems = cities.map((c) => ({ name: c.name, to: `/stader/${c.slug}` }));
 
@@ -106,19 +122,38 @@ export default function Navbar() {
           </Link>
         </div>
 
-        <div className="hidden lg:flex items-center gap-4">
-          <Link
-            to="/admin/login"
-            className="text-foreground/60 hover:text-primary font-medium text-sm transition-colors"
-          >
-            Logga in
-          </Link>
-          <Link
-            to="/join"
-            className="bg-accent text-accent-foreground px-6 py-2.5 rounded-full font-semibold text-sm hover:opacity-90 transition-opacity"
-          >
-            Join Us
-          </Link>
+        <div className="hidden lg:flex items-center gap-6">
+          {user ? (
+            <>
+              <Link
+                to={dashboardLink}
+                className="text-foreground/80 hover:text-primary font-medium text-sm tracking-wide transition-colors"
+              >
+                {role === "member" ? "Mina Sidor" : "Dashboard"}
+              </Link>
+              <button
+                onClick={() => signOut()}
+                className="text-foreground/60 hover:text-destructive font-medium text-sm transition-colors cursor-pointer"
+              >
+                Logga ut
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                to="/admin/login"
+                className="text-foreground/60 hover:text-primary font-medium text-sm transition-colors"
+              >
+                Logga in
+              </Link>
+              <Link
+                to="/join"
+                className="bg-accent text-accent-foreground px-6 py-2.5 rounded-full font-semibold text-sm hover:opacity-90 transition-opacity"
+              >
+                Join Us
+              </Link>
+            </>
+          )}
         </div>
 
         {/* Mobile toggle */}
@@ -164,8 +199,27 @@ export default function Navbar() {
               </div>
               <Link to="/engagera-dig" className="block py-2 text-foreground/80 font-medium" onClick={() => setMobileOpen(false)}>Engagera dig</Link>
               <Link to="/wow-galan" className="block py-2 text-foreground/80 font-medium" onClick={() => setMobileOpen(false)}>WOW-Galan</Link>
-              <Link to="/admin/login" className="block py-2 text-foreground/60 font-medium text-sm" onClick={() => setMobileOpen(false)}>Logga in</Link>
-              <Link to="/join" className="inline-block mt-2 bg-accent text-accent-foreground px-6 py-2.5 rounded-full font-semibold text-sm" onClick={() => setMobileOpen(false)}>Join Us</Link>
+              {user ? (
+                <>
+                  <Link to={dashboardLink} className="block py-2 text-foreground/85 font-medium" onClick={() => setMobileOpen(false)}>
+                    {role === "member" ? "Mina Sidor" : "Dashboard"}
+                  </Link>
+                  <button 
+                    onClick={() => {
+                      signOut();
+                      setMobileOpen(false);
+                    }} 
+                    className="block py-2 text-left text-foreground/60 font-medium text-sm cursor-pointer w-full"
+                  >
+                    Logga ut
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link to="/admin/login" className="block py-2 text-foreground/60 font-medium text-sm" onClick={() => setMobileOpen(false)}>Logga in</Link>
+                  <Link to="/join" className="inline-block mt-2 bg-accent text-accent-foreground px-6 py-2.5 rounded-full font-semibold text-sm" onClick={() => setMobileOpen(false)}>Join Us</Link>
+                </>
+              )}
             </div>
           </motion.div>
         )}

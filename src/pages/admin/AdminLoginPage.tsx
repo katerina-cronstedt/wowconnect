@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { lovable } from "@/integrations/lovable/index";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,7 +16,7 @@ export default function AdminLoginPage() {
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { signIn, user, loading: authLoading } = useAuth();
+  const { signIn, user, loading: authLoading, role } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -27,11 +27,23 @@ export default function AdminLoginPage() {
     }
   }, []);
 
+  const handleRedirect = (roleVal: string | null) => {
+    if (roleVal === "hq_admin" || roleVal === "hq_team" || roleVal === "city_team" || roleVal === "staff") {
+      navigate("/admin", { replace: true });
+    } else if (roleVal === "volunteer") {
+      navigate("/admin/events", { replace: true });
+    } else if (roleVal === "member") {
+      navigate("/member/dashboard", { replace: true });
+    } else {
+      navigate("/member/unregistered", { replace: true });
+    }
+  };
+
   useEffect(() => {
     if (!authLoading && user) {
-      navigate("/admin", { replace: true });
+      handleRedirect(role);
     }
-  }, [authLoading, user, navigate]);
+  }, [authLoading, user, role, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,16 +52,18 @@ export default function AdminLoginPage() {
     const { error } = await signIn(email, password);
     if (error) {
       setError("Ogiltig e-post eller lösenord");
-    } else {
-      navigate("/admin");
+      setLoading(false);
     }
-    setLoading(false);
+    // Note: useEffect will handle the redirect on successful sign in as state changes
   };
 
   const handleGoogleSignIn = async () => {
     setError("");
-    const { error } = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: `${window.location.origin}/admin`,
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/admin/login`
+      }
     });
     if (error) {
       setError("Google-inloggning misslyckades. Försök igen.");

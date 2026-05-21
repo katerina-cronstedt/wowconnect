@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UserPlus, Search, Loader2, MapPin } from "lucide-react";
+import { UserPlus, Search, Loader2, MapPin, Tag as TagIcon, X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 
 interface Person {
@@ -14,6 +15,7 @@ interface Person {
   first_name: string;
   last_name: string;
   email: string;
+  tags?: string[] | null;
 }
 
 interface City {
@@ -38,6 +40,8 @@ export default function InviteMembersDialog({ eventId, eventCityId, existingInvi
   const [cities, setCities] = useState<City[]>([]);
   const [cityFilter, setCityFilter] = useState<string>("all");
   const [cityPersonIds, setCityPersonIds] = useState<Set<string> | null>(null);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
   // Fetch cities once
   useEffect(() => {
@@ -49,6 +53,17 @@ export default function InviteMembersDialog({ eventId, eventCityId, existingInvi
         setCityFilter(eventCityId);
       }
     });
+    
+    // Fetch unique tags
+    const fetchTags = async () => {
+      const { data } = await supabase.from("people").select("tags").not("tags", "is", null);
+      if (data) {
+        const allTags = data.flatMap(d => d.tags || []);
+        const uniqueTags = Array.from(new Set(allTags)).sort();
+        setAvailableTags(uniqueTags);
+      }
+    };
+    fetchTags();
   }, [open]);
 
   // Fetch person IDs for selected city
@@ -73,7 +88,7 @@ export default function InviteMembersDialog({ eventId, eventCityId, existingInvi
     if (!open) return;
     setLoading(true);
     const fetchPeople = async () => {
-      let q = supabase.from("people").select("id, first_name, last_name, email").order("first_name");
+      let q = supabase.from("people").select("id, first_name, last_name, email, tags").order("first_name");
       if (search.trim()) {
         q = q.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,email.ilike.%${search}%`);
       }
@@ -96,6 +111,10 @@ export default function InviteMembersDialog({ eventId, eventCityId, existingInvi
   const available = people.filter((p) => {
     if (existingInvitePersonIds.includes(p.id)) return false;
     if (cityPersonIds && !cityPersonIds.has(p.id)) return false;
+    if (selectedTags.length > 0) {
+      if (!p.tags) return false;
+      if (!selectedTags.every(t => p.tags?.includes(t))) return false;
+    }
     return true;
   });
 
@@ -108,6 +127,12 @@ export default function InviteMembersDialog({ eventId, eventCityId, existingInvi
   };
 
   const deselectAll = () => setSelected(new Set());
+  
+  const toggleTag = (tag: string) => {
+    setSelectedTags(prev => 
+      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+    );
+  };
 
   const handleInvite = async () => {
     if (selected.size === 0) return;
@@ -160,6 +185,41 @@ export default function InviteMembersDialog({ eventId, eventCityId, existingInvi
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Sök namn eller e-post..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+        </div>
+
+        {/* Tag filter */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <TagIcon className="h-3 w-3" />
+            <span>Filtrera efter taggar</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {availableTags.length === 0 ? (
+              <p className="text-[10px] text-muted-foreground italic">Inga taggar tillgängliga</p>
+            ) : (
+              availableTags.map(tag => (
+                <Badge
+                  key={tag}
+                  variant={selectedTags.includes(tag) ? "default" : "outline"}
+                  className="cursor-pointer text-[10px] px-2 py-0"
+                  onClick={() => toggleTag(tag)}
+                >
+                  {tag}
+                  {selectedTags.includes(tag) && <X className="h-2 w-2 ml-1" />}
+                </Badge>
+              ))
+            )}
+            {selectedTags.length > 0 && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-5 text-[10px] px-1.5" 
+                onClick={() => setSelectedTags([])}
+              >
+                Rensa
+              </Button>
+            )}
+          </div>
         </div>
         <ScrollArea className="h-[300px] border rounded-md">
           {loading ? (

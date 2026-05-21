@@ -55,7 +55,12 @@ export function AdminSidebar() {
           <SidebarGroupLabel>Navigering</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
+              {navItems
+                .filter(item => {
+                  if (role === "volunteer") return item.title === "Evenemang";
+                  return true;
+                })
+                .map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink

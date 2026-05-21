@@ -1,47 +1,11 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Check } from "lucide-react";
+import { Check, CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-const cities = ["Borås", "Göteborg", "Halmstad", "Helsingborg", "Karlstad", "Stockholm"];
-
-const countries = [
-  "Afghanistan", "Albanien", "Algeriet", "Angola", "Argentina", "Armenien", "Azerbajdzjan",
-  "Bangladesh", "Bosnien och Herzegovina", "Brasilien", "Bulgarien", "Burma (Myanmar)", "Chile",
-  "Colombia", "Ecuador", "Egypten", "Eritrea", "Etiopien", "Filippinerna", "Finland",
-  "Frankrike", "Georgien", "Ghana", "Grekland", "Guatemala", "Guinea", "Indien", "Indonesien",
-  "Irak", "Iran", "Israel", "Italien", "Japan", "Jordanien", "Kamerun", "Kenya", "Kina",
-  "Kongo (DRC)", "Kosovo", "Kroatien", "Kuba", "Kurdistan (region)", "Lettland", "Libanon",
-  "Libyen", "Litauen", "Marocko", "Mexiko", "Moldavien", "Montenegro", "Nepal", "Nigeria",
-  "Nordmakedonien", "Norge", "Pakistan", "Palestina", "Peru", "Polen", "Portugal", "Rumänien",
-  "Ryssland", "Rwanda", "Saudiarabien", "Senegal", "Serbien", "Sierra Leone", "Somalia",
-  "Spanien", "Sri Lanka", "Sudan", "Sverige", "Sydafrika", "Sydkorea", "Syrien", "Tadzjikistan",
-  "Tanzania", "Thailand", "Tjeckien", "Tunisien", "Turkiet", "Tyskland", "Uganda", "Ukraina",
-  "Ungern", "USA", "Uzbekistan", "Venezuela", "Vietnam", "Vitryssland", "Yemen", "Zambia", "Zimbabwe",
-  "Annat"
-];
-
-const languages = [
-  "Svenska", "Engelska", "Arabiska", "Ukrainska", "Ryska", "Persiska", "Somaliska",
-  "Spanska", "Franska", "Tigrinja", "Dari", "Pashto", "Kurdiska", "Turkiska",
-  "Polska", "Tyska", "Portugisiska", "Italienska"
-];
-
-const swedishLevels = [
-  { value: "native", label: "Modersmål" },
-  { value: "fluent", label: "Flytande" },
-  { value: "intermediate", label: "Medel" },
-  { value: "beginner", label: "Nybörjare" },
-  { value: "test", label: "Jag vill göra ett snabbtest" },
-];
-
-const heardOptions = [
-  "Vän/mun till mun",
-  "Sociala medier",
-  "Skola/universitet",
-  "Kommun/myndighet",
-  "Partnerorganisation",
-  "Annat",
-];
+import { formOptions } from "@/config/formOptions";
 
 export default function JoinPage() {
   const [form, setForm] = useState({
@@ -123,7 +87,7 @@ export default function JoinPage() {
             <label className={labelClass}>WOW-stad *</label>
             <select className={inputClass} required value={form.city} onChange={(e) => updateField("city", e.target.value)}>
               <option value="">Välj stad</option>
-              {cities.map((c) => <option key={c} value={c}>{c}</option>)}
+              {formOptions.cities.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
 
@@ -132,21 +96,43 @@ export default function JoinPage() {
               <label className={labelClass}>Ursprungsland *</label>
               <select className={inputClass} required value={form.countryOfOrigin} onChange={(e) => updateField("countryOfOrigin", e.target.value)}>
                 <option value="">Välj land</option>
-                {countries.map((c) => <option key={c} value={c}>{c}</option>)}
+                {formOptions.countries.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <div>
               <label className={labelClass}>Medborgarskap *</label>
               <select className={inputClass} required value={form.citizenship} onChange={(e) => updateField("citizenship", e.target.value)}>
                 <option value="">Välj land</option>
-                {countries.map((c) => <option key={c} value={c}>{c}</option>)}
+                {formOptions.countries.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
           </div>
 
           <div>
             <label className={labelClass}>Födelsedag *</label>
-            <input type="date" className={inputClass} required value={form.birthday} onChange={(e) => updateField("birthday", e.target.value)} />
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className={`${inputClass} flex items-center justify-between text-left font-normal ${!form.birthday && "text-muted-foreground"}`}
+                >
+                  {form.birthday ? format(new Date(form.birthday), "yyyy-MM-dd") : <span>ÅÅÅÅ-MM-DD</span>}
+                  <CalendarIcon className="h-4 w-4 opacity-50" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={form.birthday ? new Date(form.birthday) : undefined}
+                  onSelect={(date) => updateField("birthday", date ? format(date, "yyyy-MM-dd") : "")}
+                  defaultMonth={new Date(1990, 0)}
+                  disabled={(date) =>
+                    date > new Date() || date < new Date("1900-01-01")
+                  }
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div>
@@ -158,7 +144,7 @@ export default function JoinPage() {
           <div>
             <label className={labelClass}>Språk *</label>
             <div className="flex flex-wrap gap-2 mt-1">
-              {languages.map((lang) => (
+              {formOptions.languages.map((lang) => (
                 <button
                   key={lang}
                   type="button"
@@ -194,7 +180,7 @@ export default function JoinPage() {
             <label className={labelClass}>Svenskanivå *</label>
             <select className={inputClass} required value={form.swedishLevel} onChange={(e) => updateField("swedishLevel", e.target.value)}>
               <option value="">Välj nivå</option>
-              {swedishLevels.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
+              {formOptions.swedishLevels.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
             </select>
           </div>
 
@@ -209,7 +195,7 @@ export default function JoinPage() {
             <label className={labelClass}>Hur hörde du om WOW?</label>
             <select className={inputClass} value={form.heardAbout} onChange={(e) => updateField("heardAbout", e.target.value)}>
               <option value="">Välj</option>
-              {heardOptions.map((h) => <option key={h} value={h}>{h}</option>)}
+              {formOptions.heardOptions.map((h) => <option key={h} value={h}>{h}</option>)}
             </select>
             {form.heardAbout === "Annat" && (
               <input className={`${inputClass} mt-2`} placeholder="Berätta mer" value={form.heardAboutOther} onChange={(e) => updateField("heardAboutOther", e.target.value)} />
@@ -217,33 +203,38 @@ export default function JoinPage() {
           </div>
 
           {/* Consent */}
-          <div className="space-y-4 pt-4 border-t border-border">
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                required
-                checked={form.consentData}
-                onChange={(e) => updateField("consentData", e.target.checked)}
-                className="mt-1 w-4 h-4 rounded border-border text-primary focus:ring-ring"
-              />
-              <span className="text-sm text-foreground/80">
-                Jag samtycker till att WOW lagrar och behandlar mina personuppgifter enligt GDPR. *
-              </span>
-            </label>
+          <div className="space-y-6 pt-6 border-t border-border">
+            <div className="space-y-4">
+              <h3 className="text-lg font-serif font-semibold">GDPR</h3>
+              
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  required
+                  checked={form.consentData}
+                  onChange={(e) => updateField("consentData", e.target.checked)}
+                  className="mt-1 w-4 h-4 rounded border-border text-primary focus:ring-ring"
+                />
+                <div className="text-sm text-foreground/80 leading-relaxed">
+                  <strong>Samtycke till att Women On Wednesday {form.city} behandlar mina personuppgifter</strong><br />
+                  Jag tillåter WOW att spara personliga uppgifter om mig så som namn, adress, telefonnummer, ålder, nationalitet, etc. *
+                </div>
+              </label>
 
-            <div>
-              <p className="text-sm font-medium text-foreground mb-2">
-                Samtycker du till att ditt namn, bild och röst används i WOWs kommunikation?
-              </p>
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="radio" name="mediaConsent" value="yes" onChange={(e) => updateField("mediaConsent", e.target.value)} className="text-primary focus:ring-ring" />
-                  <span className="text-sm text-foreground/80">Ja</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="radio" name="mediaConsent" value="no" onChange={(e) => updateField("mediaConsent", e.target.value)} className="text-primary focus:ring-ring" />
-                  <span className="text-sm text-foreground/80">Nej</span>
-                </label>
+              <div className="pt-2">
+                <p className="text-sm text-foreground/80 leading-relaxed mb-3">
+                  Jag ger till Women on Wednesday (WOW) min tillåtelse att använda mitt namn, bild eller röst i sina kommunikationer. Jag förstår att bilderna kan användas i online-publikationer, tryckta publikationer, presentationer, webbplatser och sociala medier relaterade till organisationen (WOW). Jag förstår också att ingen royalty, avgift eller annan ersättning ska betalas till mig på grund av sådan användning.*
+                </p>
+                <div className="flex gap-6">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" required name="mediaConsent" value="yes" onChange={(e) => updateField("mediaConsent", e.target.value)} className="text-primary focus:ring-ring w-4 h-4" />
+                    <span className="text-sm font-medium">Ja</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" required name="mediaConsent" value="no" onChange={(e) => updateField("mediaConsent", e.target.value)} className="text-primary focus:ring-ring w-4 h-4" />
+                    <span className="text-sm font-medium">Nej</span>
+                  </label>
+                </div>
               </div>
             </div>
           </div>
