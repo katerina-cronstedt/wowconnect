@@ -134,9 +134,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setRole(null);
-    setPersonId(null);
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.error("Error signing out:", e);
+    } finally {
+      setUser(null);
+      setSession(null);
+      setRole(null);
+      setPersonId(null);
+      window.location.href = "/admin/login";
+    }
   };
 
   return (
